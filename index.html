@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HostelHive - Smart Expense Tracking for Students & Professionals</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-bg-alt {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .dark {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+        }
+        
+        .dark .glass {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg transition-all duration-300">
+    <!-- Toast Notification -->
+    <div id="toast" class="toast glass rounded-2xl p-4 text-white shadow-xl">
+        <div class="flex items-center space-x-3">
+            <i id="toast-icon" class="fas fa-check-circle text-green-400"></i>
+            <span id="toast-message">Success!</span>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="glass rounded-2xl m-4 p-4 shadow-xl">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 gradient-bg-alt rounded-xl flex items-center justify-center">
+                    <i class="fas fa-home text-white text-lg"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">HostelHive</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="glass rounded-xl p-3 text-white hover:bg-white/20 transition-all">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="nav-login" class="glass rounded-xl px-6 py-3 text-white hover:bg-white/20 transition-all">
+                    Login
+                </button>
+                <button id="nav-signup" class="gradient-bg-alt rounded-xl px-6 py-3 text-white hover:opacity-90 transition-all">
+                    Sign Up
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <div id="main-content">
+        <!-- Landing Page -->
+        <div id="landing-page">
+            <!-- Hero Section -->
+            <section class="px-4 py-20 text-center">
+                <div class="max-w-6xl mx-auto">
+                    <div class="animate-float mb-8">
+                        <div class="w-24 h-24 gradient-bg-alt rounded-3xl mx-auto flex items-center justify-center mb-6">
+                            <i class="fas fa-chart-line text-white text-3xl"></i>
+                        </div>
+                    </div>
+                    <h1 class="text-5xl md:text-7xl font-bold text-white mb-6">
+                        Smart Money Management for
+                        <span class="gradient-bg-alt bg-clip-text text-transparent">Hostel Life</span>
+                    </h1>
+                    <p class="text-xl text-white/80 mb-8 max-w-3xl mx-auto">
+                        Track expenses, manage budgets, and achieve financial goals. Perfect for college students and working professionals living in hostels and PGs.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <button id="hero-signup" class="gradient-bg-alt rounded-2xl px-8 py-4 text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                            Start Tracking Free
+                        </button>
+                        <button id="hero-demo" class="glass rounded-2xl px-8 py-4 text-white font-semibold hover:bg-white/20 transition-all">
+                            View Demo
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Section -->
+            <section class="px-4 py-20">
+                <div class="max-w-6xl mx-auto">
+                    <h2 class="text-4xl font-bold text-white text-center mb-16">Why Choose HostelHive?</h2>
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="glass rounded-3xl p-8 text-center hover:bg-white/20 transition-all">
+                            <div class="w-16 h-16 gradient-bg rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-mobile-alt text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-semibold text-white mb-4">Mobile-First Design</h3>
+                            <p class="text-white/70">Optimized for your phone. Track expenses on the go, anytime, anywhere.</p>
+                        </div>
+                        <div class="glass rounded-3xl p-8 text-center hover:bg-white/20 transition-all">
+                            <div class="w-16 h-16 gradient-bg rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-chart-pie text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-semibold text-white mb-4">Smart Analytics</h3>
+                            <p class="text-white/70">Visual insights and trends to understand your spending patterns better.</p>
+                        </div>
+                        <div class="glass rounded-3xl p-8 text-center hover:bg-white/20 transition-all">
+                            <div class="w-16 h-16 gradient-bg rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                                <i class="fas fa-shield-alt text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-semibold text-white mb-4">Secure & Private</h3>
+                            <p class="text-white/70">Your financial data is encrypted and secure. We never share your information.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Testimonials -->
+            <section class="px-4 py-20">
+                <div class="max-w-4xl mx-auto text-center">
+                    <h2 class="text-4xl font-bold text-white mb-16">What Students Say</h2>
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div class="glass rounded-3xl p-8">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 gradient-bg-alt rounded-full flex items-center justify-center mr-4">
+                                    <span class="text-white font-semibold">A</span>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold">Arjun Patel</h4>
+                                    <p class="text-white/60">Engineering Student</p>
+                                </div>
+                            </div>
+                            <p class="text-white/80">"HostelHive helped me save ₹5000 last month! The budget alerts are a lifesaver."</p>
+                        </div>
+                        <div class="glass rounded-3xl p-8">
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 gradient-bg-alt rounded-full flex items-center justify-center mr-4">
+                                    <span class="text-white font-semibold">P</span>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold">Priya Sharma</h4>
+                                    <p class="text-white/60">Working Professional</p>
+                                </div>
+                            </div>
+                            <p class="text-white/80">"Finally, an expense tracker that understands hostel life. Simple and effective!"</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FAQ Section -->
+            <section class="px-4 py-20">
+                <div class="max-w-4xl mx-auto">
+                    <h2 class="text-4xl font-bold text-white text-center mb-16">Frequently Asked Questions</h2>
+                    <div class="space-y-4">
+                        <div class="glass rounded-2xl p-6">
+                            <button class="faq-toggle w-full text-left flex items-center justify-between text-white font-semibold">
+                                <span>Is HostelHive free to use?</span>
+                                <i class="fas fa-chevron-down transition-transform"></i>
+                            </button>
+                            <div class="faq-content hidden mt-4 text-white/80">
+                                Yes! HostelHive is completely free for all students and working professionals. No hidden charges.
+                            </div>
+                        </div>
+                        <div class="glass rounded-2xl p-6">
+                            <button class="faq-toggle w-full text-left flex items-center justify-between text-white font-semibold">
+                                <span>How secure is my financial data?</span>
+                                <i class="fas fa-chevron-down transition-transform"></i>
+                            </button>
+                            <div class="faq-content hidden mt-4 text-white/80">
+                                We use bank-level encryption to protect your data. Your information is stored securely and never shared with third parties.
+                            </div>
+                        </div>
+                        <div class="glass rounded-2xl p-6">
+                            <button class="faq-toggle w-full text-left flex items-center justify-between text-white font-semibold">
+                                <span>Can I export my expense reports?</span>
+                                <i class="fas fa-chevron-down transition-transform"></i>
+                            </button>
+                            <div class="faq-content hidden mt-4 text-white/80">
+                                Absolutely! You can download your expense reports in PDF or CSV format for your records.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contact Section -->
+            <section class="px-4 py-20">
+                <div class="max-w-2xl mx-auto text-center">
+                    <h2 class="text-4xl font-bold text-white mb-8">Get Started Today</h2>
+                    <p class="text-xl text-white/80 mb-8">Join thousands of students already managing their finances smarter.</p>
+                    <button id="footer-signup" class="gradient-bg-alt rounded-2xl px-8 py-4 text-white font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                        Create Free Account
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Auth Pages -->
+        <div id="auth-page" class="hidden min-h-screen flex items-center justify-center p-4">
+            <div class="glass rounded-3xl p-8 w-full max-w-md">
+                <!-- Login Form -->
+                <div id="login-form">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 gradient-bg-alt rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-user text-white text-2xl"></i>
+                        </div>
+                        <h2 class="text-3xl font-bold text-white">Welcome Back</h2>
+                        <p class="text-white/70">Sign in to your account</p>
+                    </div>
+                    
+                    <form id="loginForm" class="space-y-6">
+                        <div>
+                            <input type="email" id="login-email" placeholder="Email address" required
+                                class="w-full glass rounded-xl p-4 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                        </div>
+                        <div>
+                            <input type="password" id="login-password" placeholder="Password" required
+                                class="w-full glass rounded-xl p-4 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                        </div>
+                        <button type="submit" class="w-full gradient-bg-alt rounded-xl py-4 text-white font-semibold hover:opacity-90 transition-all">
+                            Sign In
+                        </button>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="show-signup" class="text-white/70 hover:text-white transition-all">
+                            Don't have an account? <span class="text-purple-300">Sign up</span>
+                        </button>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="back-to-home" class="text-white/70 hover:text-white transition-all">
+                            ← Back to Home
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="signup-form" class="hidden">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 gradient-bg-alt rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                            <i class="fas fa-user-plus text-white text-2xl"></i>
+                        </div>
+                        <h2 class="text-3xl font-bold text-white">Create Account</h2>
+                        <p class="text-white/70">Join HostelHive today</p>
+                    </div>
+                    
+                    <form id="signupForm" class="space-y-6">
+                        <div>
+                            <input type="text" id="signup-name" placeholder="Full Name" required
+                                class="w-full glass rounded-xl p-4 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                        </div>
+                        <div>
+                            <input type="email" id="signup-email" placeholder="Email address" required
+                                class="w-full glass rounded-xl p-4 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                        </div>
+                        <div>
+                            <input type="password" id="signup-password" placeholder="Password (min 6 characters)" required minlength="6"
+                                class="w-full glass rounded-xl p-4 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                        </div>
+                        <button type="submit" class="w-full gradient-bg-alt rounded-xl py-4 text-white font-semibold hover:opacity-90 transition-all">
+                            Create Account
+                        </button>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="show-login" class="text-white/70 hover:text-white transition-all">
+                            Already have an account? <span class="text-purple-300">Sign in</span>
+                        </button>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="back-to-home-signup" class="text-white/70 hover:text-white transition-all">
+                            ← Back to Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-page" class="hidden min-h-screen p-4">
+            <!-- Dashboard Navigation -->
+            <nav class="glass rounded-2xl p-4 mb-6 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 gradient-bg-alt rounded-xl flex items-center justify-center">
+                            <i class="fas fa-home text-white text-lg"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold text-white">HostelHive</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="user-name" class="text-white/80">Welcome back!</span>
+                        <button id="logout-btn" class="glass rounded-xl px-4 py-2 text-white hover:bg-white/20 transition-all">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Dashboard Tabs -->
+            <div class="glass rounded-2xl p-4 mb-6">
+                <div class="flex flex-wrap gap-2">
+                    <button class="tab-btn active gradient-bg-alt rounded-xl px-6 py-3 text-white font-semibold" data-tab="overview">
+                        <i class="fas fa-chart-line mr-2"></i>Overview
+                    </button>
+                    <button class="tab-btn glass rounded-xl px-6 py-3 text-white font-semibold hover:bg-white/20 transition-all" data-tab="transactions">
+                        <i class="fas fa-list mr-2"></i>Transactions
+                    </button>
+                    <button class="tab-btn glass rounded-xl px-6 py-3 text-white font-semibold hover:bg-white/20 transition-all" data-tab="budgets">
+                        <i class="fas fa-piggy-bank mr-2"></i>Budgets
+                    </button>
+                    <button class="tab-btn glass rounded-xl px-6 py-3 text-white font-semibold hover:bg-white/20 transition-all" data-tab="reports">
+                        <i class="fas fa-file-alt mr-2"></i>Reports
+                    </button>
+                    <button class="tab-btn glass rounded-xl px-6 py-3 text-white font-semibold hover:bg-white/20 transition-all" data-tab="settings">
+                        <i class="fas fa-cog mr-2"></i>Settings
+                    </button>
+                </div>
+            </div>
+
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-content">
+                <!-- KPI Cards -->
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div class="glass rounded-3xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-white/80 font-medium">Total Income</h3>
+                            <i class="fas fa-arrow-up text-green-400 text-xl"></i>
+                        </div>
+                        <p id="total-income" class="text-3xl font-bold text-white">₹0</p>
+                        <p class="text-green-400 text-sm mt-2">This month</p>
+                    </div>
+                    <div class="glass rounded-3xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-white/80 font-medium">Total Expenses</h3>
+                            <i class="fas fa-arrow-down text-red-400 text-xl"></i>
+                        </div>
+                        <p id="total-expenses" class="text-3xl font-bold text-white">₹0</p>
+                        <p class="text-red-400 text-sm mt-2">This month</p>
+                    </div>
+                    <div class="glass rounded-3xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-white/80 font-medium">Balance</h3>
+                            <i class="fas fa-wallet text-blue-400 text-xl"></i>
+                        </div>
+                        <p id="balance" class="text-3xl font-bold text-white">₹0</p>
+                        <p id="balance-status" class="text-blue-400 text-sm mt-2">Available</p>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid lg:grid-cols-2 gap-6 mb-8">
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-xl font-semibold text-white mb-4">Expense by Category</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="categoryChart" class="max-w-full max-h-full"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-xl font-semibold text-white mb-4">Monthly Trend</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="trendChart" class="max-w-full max-h-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Add -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-xl font-semibold text-white mb-4">Quick Add Income</h3>
+                        <form id="quick-income-form" class="space-y-4">
+                            <input type="number" id="income-amount" placeholder="Amount (₹)" required
+                                class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-green-400 outline-none">
+                            <input type="text" id="income-description" placeholder="Description" required
+                                class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-green-400 outline-none">
+                            <select id="income-category" required
+                                class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-green-400 outline-none bg-white/10">
+                                <option value="" class="bg-gray-800 text-white">Select Category</option>
+                                <option value="Salary" class="bg-gray-800 text-white">Salary</option>
+                                <option value="Freelance" class="bg-gray-800 text-white">Freelance</option>
+                                <option value="Family" class="bg-gray-800 text-white">Family Support</option>
+                                <option value="Scholarship" class="bg-gray-800 text-white">Scholarship</option>
+                                <option value="Other" class="bg-gray-800 text-white">Other</option>
+                            </select>
+                            <button type="submit" class="w-full bg-green-500 hover:bg-green-600 rounded-xl py-3 text-white font-semibold transition-all">
+                                Add Income
+                            </button>
+                        </form>
+                    </div>
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-xl font-semibold text-white mb-4">Quick Add Expense</h3>
+                        <div id="balance-warning" class="hidden mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded-xl">
+                            <div class="flex items-center text-yellow-300">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <span class="text-sm">Available Balance: <span id="available-balance">₹0</span></span>
+                            </div>
+                        </div>
+                        <form id="quick-expense-form" class="space-y-4">
+                            <input type="number" id="expense-amount" placeholder="Amount (₹)" required
+                                class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-red-400 outline-none">
+                            <input type="text" id="expense-description" placeholder="Description" required
+                                class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-red-400 outline-none">
+                            <select id="expense-category" required
+                                class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-red-400 outline-none bg-white/10">
+                                <option value="" class="bg-gray-800 text-white">Select Category</option>
+                                <option value="Food" class="bg-gray-800 text-white">Food</option>
+                                <option value="Transport" class="bg-gray-800 text-white">Transport</option>
+                                <option value="Entertainment" class="bg-gray-800 text-white">Entertainment</option>
+                                <option value="Shopping" class="bg-gray-800 text-white">Shopping</option>
+                                <option value="Bills" class="bg-gray-800 text-white">Bills</option>
+                                <option value="Education" class="bg-gray-800 text-white">Education</option>
+                                <option value="Health" class="bg-gray-800 text-white">Health</option>
+                                <option value="Other" class="bg-gray-800 text-white">Other</option>
+                            </select>
+                            <button type="submit" id="expense-submit-btn" class="w-full bg-red-500 hover:bg-red-600 rounded-xl py-3 text-white font-semibold transition-all">
+                                Add Expense
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Tab -->
+            <div id="transactions-tab" class="tab-content hidden">
+                <div class="glass rounded-3xl p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                        <h3 class="text-2xl font-semibold text-white mb-4 md:mb-0">All Transactions</h3>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <input type="text" id="search-transactions" placeholder="Search transactions..."
+                                class="glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                            <select id="filter-category"
+                                class="glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                                <option value="" class="bg-gray-800 text-white">All Categories</option>
+                                <option value="Food" class="bg-gray-800 text-white">Food</option>
+                                <option value="Transport" class="bg-gray-800 text-white">Transport</option>
+                                <option value="Entertainment" class="bg-gray-800 text-white">Entertainment</option>
+                                <option value="Shopping" class="bg-gray-800 text-white">Shopping</option>
+                                <option value="Bills" class="bg-gray-800 text-white">Bills</option>
+                                <option value="Education" class="bg-gray-800 text-white">Education</option>
+                                <option value="Health" class="bg-gray-800 text-white">Health</option>
+                                <option value="Salary" class="bg-gray-800 text-white">Salary</option>
+                                <option value="Freelance" class="bg-gray-800 text-white">Freelance</option>
+                                <option value="Family" class="bg-gray-800 text-white">Family Support</option>
+                                <option value="Scholarship" class="bg-gray-800 text-white">Scholarship</option>
+                                <option value="Other" class="bg-gray-800 text-white">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="transactions-list" class="space-y-4">
+                        <div class="text-center text-white/60 py-8">
+                            <i class="fas fa-receipt text-4xl mb-4"></i>
+                            <p>No transactions yet. Add your first transaction to get started!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budgets Tab -->
+            <div id="budgets-tab" class="tab-content hidden">
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-2xl font-semibold text-white mb-6">Set Monthly Budget</h3>
+                        <form id="budget-form" class="space-y-4">
+                            <select id="budget-category" required
+                                class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                                <option value="" class="bg-gray-800 text-white">Select Category</option>
+                                <option value="Food" class="bg-gray-800 text-white">Food</option>
+                                <option value="Transport" class="bg-gray-800 text-white">Transport</option>
+                                <option value="Entertainment" class="bg-gray-800 text-white">Entertainment</option>
+                                <option value="Shopping" class="bg-gray-800 text-white">Shopping</option>
+                                <option value="Bills" class="bg-gray-800 text-white">Bills</option>
+                                <option value="Education" class="bg-gray-800 text-white">Education</option>
+                                <option value="Health" class="bg-gray-800 text-white">Health</option>
+                                <option value="Other" class="bg-gray-800 text-white">Other</option>
+                            </select>
+                            <input type="number" id="budget-limit" placeholder="Monthly Limit (₹)" required
+                                class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                            <button type="submit" class="w-full gradient-bg-alt rounded-xl py-3 text-white font-semibold hover:opacity-90 transition-all">
+                                Set Budget
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-2xl font-semibold text-white mb-6">Current Budgets</h3>
+                        <div id="budgets-list" class="space-y-4">
+                            <div class="text-center text-white/60 py-8">
+                                <i class="fas fa-piggy-bank text-4xl mb-4"></i>
+                                <p>No budgets set yet. Create your first budget to track spending!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports-tab" class="tab-content hidden">
+                <div class="glass rounded-3xl p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                        <h3 class="text-2xl font-semibold text-white mb-4 md:mb-0">Monthly Reports</h3>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <select id="report-month"
+                                class="glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                                <option value="" class="bg-gray-800 text-white">Select Month</option>
+                            </select>
+                            <button id="download-csv" class="glass rounded-xl px-6 py-3 text-white hover:bg-white/20 transition-all">
+                                <i class="fas fa-download mr-2"></i>Download CSV
+                            </button>
+                            <button id="download-pdf" class="gradient-bg-alt rounded-xl px-6 py-3 text-white hover:opacity-90 transition-all">
+                                <i class="fas fa-file-pdf mr-2"></i>Download PDF
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="report-summary" class="grid md:grid-cols-3 gap-6 mb-8">
+                        <div class="glass rounded-2xl p-4 text-center">
+                            <h4 class="text-white/80 mb-2">Total Income</h4>
+                            <p id="report-income" class="text-2xl font-bold text-green-400">₹0</p>
+                        </div>
+                        <div class="glass rounded-2xl p-4 text-center">
+                            <h4 class="text-white/80 mb-2">Total Expenses</h4>
+                            <p id="report-expenses" class="text-2xl font-bold text-red-400">₹0</p>
+                        </div>
+                        <div class="glass rounded-2xl p-4 text-center">
+                            <h4 class="text-white/80 mb-2">Net Savings</h4>
+                            <p id="report-savings" class="text-2xl font-bold text-blue-400">₹0</p>
+                        </div>
+                    </div>
+                    
+                    <div id="report-details" class="space-y-4">
+                        <div class="text-center text-white/60 py-8">
+                            <i class="fas fa-chart-bar text-4xl mb-4"></i>
+                            <p>Select a month to view detailed report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content hidden">
+                <div class="max-w-2xl mx-auto">
+                    <div class="glass rounded-3xl p-6 mb-6">
+                        <h3 class="text-2xl font-semibold text-white mb-6">Profile Settings</h3>
+                        <form id="profile-form" class="space-y-4">
+                            <div>
+                                <label class="block text-white/80 mb-2">Full Name</label>
+                                <input type="text" id="profile-name" 
+                                    class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-white/80 mb-2">Email</label>
+                                <input type="email" id="profile-email" readonly
+                                    class="w-full glass rounded-xl p-3 text-white/60 border-0 bg-white/5">
+                            </div>
+                            <button type="submit" class="gradient-bg-alt rounded-xl px-6 py-3 text-white font-semibold hover:opacity-90 transition-all">
+                                Update Profile
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="glass rounded-3xl p-6 mb-6">
+                        <h3 class="text-2xl font-semibold text-white mb-6">Preferences</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-white">Dark Mode</span>
+                                <button id="theme-toggle-settings" class="glass rounded-full p-2 text-white hover:bg-white/20 transition-all">
+                                    <i class="fas fa-moon"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-white">Currency</span>
+                                <select id="currency-select" class="glass rounded-xl p-2 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                                    <option value="INR" class="bg-gray-800 text-white">₹ INR</option>
+                                    <option value="USD" class="bg-gray-800 text-white">$ USD</option>
+                                    <option value="EUR" class="bg-gray-800 text-white">€ EUR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-3xl p-6">
+                        <h3 class="text-2xl font-semibold text-white mb-6">Danger Zone</h3>
+                        <button id="delete-account" class="bg-red-500 hover:bg-red-600 rounded-xl px-6 py-3 text-white font-semibold transition-all">
+                            <i class="fas fa-trash mr-2"></i>Delete Account
+                        </button>
+                        <p class="text-white/60 text-sm mt-2">This action cannot be undone.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Modal -->
+    <div id="transaction-modal" class="modal">
+        <div class="glass rounded-3xl p-6 w-full max-w-md mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h3 id="modal-title" class="text-2xl font-semibold text-white">Edit Transaction</h3>
+                <button id="close-modal" class="text-white/60 hover:text-white text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="transaction-form" class="space-y-4">
+                <input type="hidden" id="edit-transaction-id">
+                <div>
+                    <label class="block text-white/80 mb-2">Type</label>
+                    <select id="edit-type" required
+                        class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                        <option value="income" class="bg-gray-800 text-white">Income</option>
+                        <option value="expense" class="bg-gray-800 text-white">Expense</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-white/80 mb-2">Amount (₹)</label>
+                    <input type="number" id="edit-amount" required
+                        class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                </div>
+                <div>
+                    <label class="block text-white/80 mb-2">Description</label>
+                    <input type="text" id="edit-description" required
+                        class="w-full glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                </div>
+                <div>
+                    <label class="block text-white/80 mb-2">Category</label>
+                    <select id="edit-category" required
+                        class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                        <option value="" class="bg-gray-800 text-white">Select Category</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-white/80 mb-2">Date</label>
+                    <input type="date" id="edit-date" required
+                        class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none">
+                </div>
+                <div class="flex gap-4">
+                    <button type="submit" class="flex-1 gradient-bg-alt rounded-xl py-3 text-white font-semibold hover:opacity-90 transition-all">
+                        Save Changes
+                    </button>
+                    <button type="button" id="delete-transaction" class="bg-red-500 hover:bg-red-600 rounded-xl px-6 py-3 text-white font-semibold transition-all">
+                        Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let currentUser = null;
+        let transactions = [];
+        let budgets = [];
+        let isDarkMode = false;
+        let currentCurrency = 'INR';
+        
+        // Sample data for demo
+        const sampleTransactions = [
+            {
+                id: '1',
+                type: 'expense',
+                amount: 250,
+                description: 'Lunch at canteen',
+                category: 'Food',
+                date: new Date().toISOString().split('T')[0],
+                paymentMode: 'Cash'
+            },
+            {
+                id: '2',
+                type: 'income',
+                amount: 15000,
+                description: 'Monthly allowance',
+                category: 'Family',
+                date: new Date().toISOString().split('T')[0],
+                paymentMode: 'Bank Transfer'
+            },
+            {
+                id: '3',
+                type: 'expense',
+                amount: 80,
+                description: 'Bus fare',
+                category: 'Transport',
+                date: new Date().toISOString().split('T')[0],
+                paymentMode: 'Cash'
+            }
+        ];
+        
+        const sampleBudgets = [
+            { id: '1', category: 'Food', limit: 5000, spent: 1250 },
+            { id: '2', category: 'Transport', limit: 2000, spent: 480 },
+            { id: '3', category: 'Entertainment', limit: 3000, spent: 800 }
+        ];
+
+        // Utility Functions
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const messageEl = document.getElementById('toast-message');
+            
+            messageEl.textContent = message;
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle text-green-400';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle text-red-400';
+            } else if (type === 'warning') {
+                icon.className = 'fas fa-exclamation-triangle text-yellow-400';
+            }
+            
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function formatCurrency(amount) {
+            const symbols = { INR: '₹', USD: '$', EUR: '€' };
+            return `${symbols[currentCurrency]}${amount.toLocaleString()}`;
+        }
+
+        function generateId() {
+            return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Navigation Functions
+        function showPage(pageId) {
+            document.querySelectorAll('#main-content > div').forEach(page => {
+                page.classList.add('hidden');
+            });
+            document.getElementById(pageId).classList.remove('hidden');
+        }
+
+        function showAuthPage(formType = 'login') {
+            showPage('auth-page');
+            if (formType === 'login') {
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('signup-form').classList.add('hidden');
+            } else {
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('signup-form').classList.remove('hidden');
+            }
+        }
+
+        function showDashboard() {
+            showPage('dashboard-page');
+            showTab('overview');
+            updateDashboard();
+        }
+
+        function showTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'gradient-bg-alt');
+                btn.classList.add('glass', 'hover:bg-white/20');
+            });
+            
+            const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            activeBtn.classList.remove('glass', 'hover:bg-white/20');
+            activeBtn.classList.add('active', 'gradient-bg-alt');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            
+            // Load tab-specific data
+            if (tabName === 'transactions') {
+                loadTransactions();
+            } else if (tabName === 'budgets') {
+                loadBudgets();
+            } else if (tabName === 'reports') {
+                loadReports();
+            } else if (tabName === 'settings') {
+                loadSettings();
+            }
+        }
+
+        // Authentication Functions
+        function login(email, password) {
+            // Simple validation - in real app, this would be server-side
+            if (email && password.length >= 6) {
+                currentUser = {
+                    id: generateId(),
+                    name: email.split('@')[0],
+                    email: email,
+                    createdAt: new Date().toISOString()
+                };
+                
+                // Load sample data for demo
+                transactions = [...sampleTransactions];
+                budgets = [...sampleBudgets];
+                
+                localStorage.setItem('hostelhive_user', JSON.stringify(currentUser));
+                localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+                localStorage.setItem('hostelhive_budgets', JSON.stringify(budgets));
+                
+                showToast('Login successful!');
+                showDashboard();
+                return true;
+            }
+            return false;
+        }
+
+        function signup(name, email, password) {
+            if (name && email && password.length >= 6) {
+                currentUser = {
+                    id: generateId(),
+                    name: name,
+                    email: email,
+                    createdAt: new Date().toISOString()
+                };
+                
+                transactions = [];
+                budgets = [];
+                
+                localStorage.setItem('hostelhive_user', JSON.stringify(currentUser));
+                localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+                localStorage.setItem('hostelhive_budgets', JSON.stringify(budgets));
+                
+                showToast('Account created successfully!');
+                showDashboard();
+                return true;
+            }
+            return false;
+        }
+
+        function logout() {
+            currentUser = null;
+            transactions = [];
+            budgets = [];
+            localStorage.removeItem('hostelhive_user');
+            localStorage.removeItem('hostelhive_transactions');
+            localStorage.removeItem('hostelhive_budgets');
+            showPage('landing-page');
+            showToast('Logged out successfully!');
+        }
+
+        // Dashboard Functions
+        let dashboardUpdateTimeout;
+        
+        function updateDashboard() {
+            if (!currentUser) return;
+            
+            // Debounce dashboard updates to prevent excessive re-renders
+            clearTimeout(dashboardUpdateTimeout);
+            dashboardUpdateTimeout = setTimeout(() => {
+                performDashboardUpdate();
+            }, 100);
+        }
+        
+        function performDashboardUpdate() {
+            document.getElementById('user-name').textContent = `Welcome back, ${currentUser.name}!`;
+            
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const monthlyTransactions = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                return tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear;
+            });
+            
+            const totalIncome = transactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const totalExpenses = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const balance = totalIncome - totalExpenses;
+            
+            // Monthly totals for display
+            const monthlyIncome = monthlyTransactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const monthlyExpenses = monthlyTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const monthlyBalance = monthlyIncome - monthlyExpenses;
+            
+            // Update DOM elements efficiently
+            const elements = {
+                'total-income': formatCurrency(monthlyIncome),
+                'total-expenses': formatCurrency(monthlyExpenses),
+                'balance': formatCurrency(monthlyBalance)
+            };
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element && element.textContent !== value) {
+                    element.textContent = value;
+                }
+            });
+            
+            const balanceStatus = document.getElementById('balance-status');
+            if (balanceStatus) {
+                let statusText, statusClass;
+                if (monthlyBalance > 0) {
+                    statusText = 'Surplus';
+                    statusClass = 'text-green-400 text-sm mt-2';
+                } else if (monthlyBalance < 0) {
+                    statusText = 'Deficit';
+                    statusClass = 'text-red-400 text-sm mt-2';
+                } else {
+                    statusText = 'Break-even';
+                    statusClass = 'text-blue-400 text-sm mt-2';
+                }
+                
+                if (balanceStatus.textContent !== statusText) {
+                    balanceStatus.textContent = statusText;
+                    balanceStatus.className = statusClass;
+                }
+            }
+            
+            // Update expense form state
+            updateExpenseFormState(totalIncome, balance);
+            
+            // Update charts immediately
+            updateCharts();
+        }
+        
+        function updateExpenseFormState(totalIncome, availableBalance) {
+            const balanceWarning = document.getElementById('balance-warning');
+            const availableBalanceSpan = document.getElementById('available-balance');
+            const expenseSubmitBtn = document.getElementById('expense-submit-btn');
+            
+            if (totalIncome === 0) {
+                // No income added yet
+                balanceWarning.classList.remove('hidden');
+                balanceWarning.className = 'mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl';
+                balanceWarning.innerHTML = `
+                    <div class="flex items-center text-red-300">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span class="text-sm">Please add your income first before recording expenses!</span>
+                    </div>
+                `;
+                expenseSubmitBtn.disabled = true;
+                expenseSubmitBtn.className = 'w-full bg-gray-500 rounded-xl py-3 text-white font-semibold cursor-not-allowed';
+                expenseSubmitBtn.textContent = 'Add Income First';
+            } else if (availableBalance <= 0) {
+                // No balance available
+                balanceWarning.classList.remove('hidden');
+                balanceWarning.className = 'mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl';
+                balanceWarning.innerHTML = `
+                    <div class="flex items-center text-red-300">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span class="text-sm">No balance available for expenses!</span>
+                    </div>
+                `;
+                expenseSubmitBtn.disabled = true;
+                expenseSubmitBtn.className = 'w-full bg-gray-500 rounded-xl py-3 text-white font-semibold cursor-not-allowed';
+                expenseSubmitBtn.textContent = 'Insufficient Balance';
+            } else {
+                // Show available balance
+                balanceWarning.classList.remove('hidden');
+                balanceWarning.className = 'mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-xl';
+                availableBalanceSpan.textContent = formatCurrency(availableBalance);
+                balanceWarning.innerHTML = `
+                    <div class="flex items-center text-blue-300">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <span class="text-sm">Available Balance: <span id="available-balance">${formatCurrency(availableBalance)}</span></span>
+                    </div>
+                `;
+                expenseSubmitBtn.disabled = false;
+                expenseSubmitBtn.className = 'w-full bg-red-500 hover:bg-red-600 rounded-xl py-3 text-white font-semibold transition-all';
+                expenseSubmitBtn.textContent = 'Add Expense';
+            }
+        }
+
+        let chartUpdatePending = false;
+        
+        function updateCharts() {
+            // Prevent multiple chart updates from queuing up
+            if (chartUpdatePending) return;
+            chartUpdatePending = true;
+            
+            // Update charts immediately without delay
+            requestAnimationFrame(() => {
+                updateCategoryChart();
+                updateTrendChart();
+                chartUpdatePending = false;
+            });
+        }
+
+        function updateCategoryChart() {
+            const ctx = document.getElementById('categoryChart');
+            if (!ctx) return;
+            
+            const context = ctx.getContext('2d');
+            
+            // Calculate data first
+            const expensesByCategory = {};
+            transactions
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+                });
+            
+            const labels = Object.keys(expensesByCategory);
+            const data = Object.values(expensesByCategory);
+            
+            // Show simple text if no data
+            if (labels.length === 0) {
+                // Destroy existing chart first
+                if (window.categoryChartInstance) {
+                    window.categoryChartInstance.destroy();
+                    window.categoryChartInstance = null;
+                }
+                
+                context.clearRect(0, 0, ctx.width, ctx.height);
+                context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                context.font = '14px Inter';
+                context.textAlign = 'center';
+                context.fillText('Add expenses to see chart', ctx.width / 2, ctx.height / 2);
+                return;
+            }
+            
+            // Update existing chart data instead of recreating
+            if (window.categoryChartInstance) {
+                window.categoryChartInstance.data.labels = labels;
+                window.categoryChartInstance.data.datasets[0].data = data;
+                window.categoryChartInstance.update('none'); // Instant update
+                return;
+            }
+            
+            // Create new chart only if none exists
+            const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'];
+            
+            window.categoryChartInstance = new Chart(context, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        borderColor: 'transparent'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    layout: {
+                        padding: 10
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white',
+                                padding: 8,
+                                font: { size: 11 },
+                                boxWidth: 12
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTrendChart() {
+            const ctx = document.getElementById('trendChart');
+            if (!ctx) return;
+            
+            const context = ctx.getContext('2d');
+            
+            // Calculate data first
+            const months = [];
+            const incomeData = [];
+            const expenseData = [];
+            
+            for (let i = 2; i >= 0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                months.push(date.toLocaleDateString('en-US', { month: 'short' }));
+                
+                const monthTransactions = transactions.filter(t => {
+                    const tDate = new Date(t.date);
+                    return tDate.getMonth() === date.getMonth() && tDate.getFullYear() === date.getFullYear();
+                });
+                
+                const monthIncome = monthTransactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                    
+                const monthExpenses = monthTransactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                incomeData.push(monthIncome);
+                expenseData.push(monthExpenses);
+            }
+            
+            // Update existing chart data instead of recreating
+            if (window.trendChartInstance) {
+                window.trendChartInstance.data.labels = months;
+                window.trendChartInstance.data.datasets[0].data = incomeData;
+                window.trendChartInstance.data.datasets[1].data = expenseData;
+                window.trendChartInstance.update('none'); // Instant update
+                return;
+            }
+            
+            // Create new chart only if none exists
+            window.trendChartInstance = new Chart(context, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: incomeData,
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Expenses',
+                            data: expenseData,
+                            borderColor: '#EF4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    layout: {
+                        padding: 10
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: 'white',
+                                font: { size: 11 },
+                                padding: 15,
+                                boxWidth: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                font: { size: 10 }
+                            },
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                display: false
+                            }
+                        },
+                        y: {
+                            ticks: { 
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                font: { size: 10 }
+                            },
+                            grid: { 
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Transaction Functions
+        function addTransaction(type, amount, description, category, date = null) {
+            // Check if user is trying to add expense without any income
+            if (type === 'expense') {
+                const totalIncome = transactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                if (totalIncome === 0) {
+                    showToast('Please add your income first before recording expenses!', 'error');
+                    return false;
+                }
+                
+                // Check if expense would exceed available balance
+                const totalExpenses = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                const currentBalance = totalIncome - totalExpenses;
+                
+                if (parseFloat(amount) > currentBalance) {
+                    showToast(`Insufficient balance! Available: ${formatCurrency(currentBalance)}`, 'error');
+                    return false;
+                }
+            }
+            
+            const transaction = {
+                id: generateId(),
+                type: type,
+                amount: parseFloat(amount),
+                description: description,
+                category: category,
+                date: date || new Date().toISOString().split('T')[0],
+                paymentMode: 'Cash'
+            };
+            
+            transactions.push(transaction);
+            localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+            
+            updateDashboard();
+            checkBudgetAlerts(category, amount);
+            
+            showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
+            return true;
+        }
+
+        function editTransaction(id, data) {
+            const index = transactions.findIndex(t => t.id === id);
+            if (index !== -1) {
+                transactions[index] = { ...transactions[index], ...data };
+                localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+                updateDashboard();
+                loadTransactions();
+                showToast('Transaction updated successfully!');
+            }
+        }
+
+        function deleteTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+            updateDashboard();
+            loadTransactions();
+            showToast('Transaction deleted successfully!');
+        }
+
+        let transactionLoadTimeout;
+        
+        function loadTransactions() {
+            // Debounce transaction loading for search/filter
+            clearTimeout(transactionLoadTimeout);
+            transactionLoadTimeout = setTimeout(() => {
+                performTransactionLoad();
+            }, 200);
+        }
+        
+        function performTransactionLoad() {
+            const container = document.getElementById('transactions-list');
+            if (!container) return;
+            
+            if (transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-white/60 py-8">
+                        <i class="fas fa-receipt text-4xl mb-4"></i>
+                        <p>No transactions yet. Add your first transaction to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const searchInput = document.getElementById('search-transactions');
+            const filterSelect = document.getElementById('filter-category');
+            
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            const filterCategory = filterSelect ? filterSelect.value : '';
+            
+            let filteredTransactions = transactions.filter(t => {
+                const matchesSearch = !searchTerm || 
+                    t.description.toLowerCase().includes(searchTerm) || 
+                    t.category.toLowerCase().includes(searchTerm);
+                const matchesCategory = !filterCategory || t.category === filterCategory;
+                return matchesSearch && matchesCategory;
+            });
+            
+            // Sort by date (newest first)
+            filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Limit to 50 transactions for performance
+            const displayTransactions = filteredTransactions.slice(0, 50);
+            
+            const transactionHTML = displayTransactions.map(t => {
+                const formattedDate = new Date(t.date).toLocaleDateString();
+                const amountColor = t.type === 'income' ? 'text-green-400' : 'text-red-400';
+                const bgColor = t.type === 'income' ? 'bg-green-500' : 'bg-red-500';
+                const icon = t.type === 'income' ? 'fa-arrow-up' : 'fa-arrow-down';
+                const sign = t.type === 'income' ? '+' : '-';
+                
+                return `
+                    <div class="glass rounded-2xl p-4 hover:bg-white/10 transition-all cursor-pointer" onclick="openTransactionModal('${t.id}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 ${bgColor} rounded-xl flex items-center justify-center">
+                                    <i class="fas ${icon} text-white"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold">${t.description}</h4>
+                                    <p class="text-white/60 text-sm">${t.category} • ${formattedDate}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xl font-bold ${amountColor}">
+                                    ${sign}${formatCurrency(t.amount)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Show message if more transactions exist
+            const moreMessage = filteredTransactions.length > 50 ? 
+                `<div class="text-center text-white/60 py-4">
+                    <p>Showing first 50 of ${filteredTransactions.length} transactions</p>
+                </div>` : '';
+            
+            container.innerHTML = transactionHTML + moreMessage;
+        }
+
+        function openTransactionModal(transactionId) {
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction) return;
+            
+            document.getElementById('edit-transaction-id').value = transaction.id;
+            document.getElementById('edit-type').value = transaction.type;
+            document.getElementById('edit-amount').value = transaction.amount;
+            document.getElementById('edit-description').value = transaction.description;
+            document.getElementById('edit-date').value = transaction.date;
+            
+            // Populate category dropdown based on type
+            const categorySelect = document.getElementById('edit-category');
+            const categories = transaction.type === 'income' 
+                ? ['Salary', 'Freelance', 'Family', 'Scholarship', 'Other']
+                : ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Education', 'Health', 'Other'];
+            
+            categorySelect.innerHTML = categories.map(cat => 
+                `<option value="${cat}" class="bg-gray-800 text-white" ${cat === transaction.category ? 'selected' : ''}>${cat}</option>`
+            ).join('');
+            
+            document.getElementById('transaction-modal').classList.add('show');
+        }
+
+        // Budget Functions
+        function addBudget(category, limit) {
+            const existingBudget = budgets.find(b => b.category === category);
+            
+            if (existingBudget) {
+                existingBudget.limit = parseFloat(limit);
+            } else {
+                const budget = {
+                    id: generateId(),
+                    category: category,
+                    limit: parseFloat(limit),
+                    spent: 0
+                };
+                budgets.push(budget);
+            }
+            
+            // Calculate spent amount
+            updateBudgetSpent();
+            
+            localStorage.setItem('hostelhive_budgets', JSON.stringify(budgets));
+            loadBudgets();
+            showToast('Budget updated successfully!');
+        }
+
+        function updateBudgetSpent() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            budgets.forEach(budget => {
+                const spent = transactions
+                    .filter(t => {
+                        const tDate = new Date(t.date);
+                        return t.type === 'expense' && 
+                               t.category === budget.category &&
+                               tDate.getMonth() === currentMonth &&
+                               tDate.getFullYear() === currentYear;
+                    })
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                budget.spent = spent;
+            });
+        }
+
+        function loadBudgets() {
+            updateBudgetSpent();
+            
+            const container = document.getElementById('budgets-list');
+            
+            if (budgets.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-white/60 py-8">
+                        <i class="fas fa-piggy-bank text-4xl mb-4"></i>
+                        <p>No budgets set yet. Create your first budget to track spending!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = budgets.map(budget => {
+                const percentage = (budget.spent / budget.limit) * 100;
+                const isOverBudget = percentage > 100;
+                const isNearLimit = percentage > 80;
+                
+                return `
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-white font-semibold">${budget.category}</h4>
+                            <span class="text-white/80">${formatCurrency(budget.spent)} / ${formatCurrency(budget.limit)}</span>
+                        </div>
+                        <div class="w-full bg-white/20 rounded-full h-3 mb-2">
+                            <div class="h-3 rounded-full transition-all ${
+                                isOverBudget ? 'bg-red-500' : isNearLimit ? 'bg-yellow-500' : 'bg-green-500'
+                            }" style="width: ${Math.min(percentage, 100)}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-white/60">${percentage.toFixed(1)}% used</span>
+                            ${isOverBudget ? '<span class="text-red-400">Over budget!</span>' : 
+                              isNearLimit ? '<span class="text-yellow-400">Near limit</span>' : 
+                              '<span class="text-green-400">On track</span>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function checkBudgetAlerts(category, amount) {
+            const budget = budgets.find(b => b.category === category);
+            if (!budget) return;
+            
+            updateBudgetSpent();
+            
+            const percentage = (budget.spent / budget.limit) * 100;
+            
+            if (percentage >= 100) {
+                showToast(`You've exceeded your ${category} budget!`, 'error');
+            } else if (percentage >= 80) {
+                showToast(`You're near your ${category} budget limit (${percentage.toFixed(1)}%)`, 'warning');
+            }
+        }
+
+        // Reports Functions
+        function loadReports() {
+            // Populate month selector
+            const monthSelect = document.getElementById('report-month');
+            const months = [];
+            
+            // Get unique months from transactions
+            transactions.forEach(t => {
+                const date = new Date(t.date);
+                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                if (!months.includes(monthYear)) {
+                    months.push(monthYear);
+                }
+            });
+            
+            // Add current month if not present
+            const currentMonth = new Date();
+            const currentMonthYear = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+            if (!months.includes(currentMonthYear)) {
+                months.push(currentMonthYear);
+            }
+            
+            months.sort().reverse();
+            
+            monthSelect.innerHTML = '<option value="" class="bg-gray-800 text-white">Select Month</option>' + 
+                months.map(month => {
+                    const date = new Date(month + '-01');
+                    const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    return `<option value="${month}" class="bg-gray-800 text-white">${label}</option>`;
+                }).join('');
+        }
+
+        function generateReport(month) {
+            if (!month) return;
+            
+            const [year, monthNum] = month.split('-');
+            const monthTransactions = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                return tDate.getFullYear() == year && tDate.getMonth() == (monthNum - 1);
+            });
+            
+            const income = monthTransactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const expenses = monthTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+                
+            const savings = income - expenses;
+            
+            document.getElementById('report-income').textContent = formatCurrency(income);
+            document.getElementById('report-expenses').textContent = formatCurrency(expenses);
+            document.getElementById('report-savings').textContent = formatCurrency(savings);
+            document.getElementById('report-savings').className = `text-2xl font-bold ${savings >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            
+            // Show detailed breakdown
+            const container = document.getElementById('report-details');
+            
+            if (monthTransactions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-white/60 py-8">
+                        <i class="fas fa-chart-bar text-4xl mb-4"></i>
+                        <p>No transactions found for this month</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group by category
+            const categoryBreakdown = {};
+            monthTransactions.forEach(t => {
+                if (!categoryBreakdown[t.category]) {
+                    categoryBreakdown[t.category] = { income: 0, expense: 0 };
+                }
+                categoryBreakdown[t.category][t.type] += t.amount;
+            });
+            
+            container.innerHTML = `
+                <h4 class="text-xl font-semibold text-white mb-4">Category Breakdown</h4>
+                <div class="space-y-3">
+                    ${Object.entries(categoryBreakdown).map(([category, amounts]) => `
+                        <div class="glass rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-white font-medium">${category}</span>
+                                <div class="text-right">
+                                    ${amounts.income > 0 ? `<div class="text-green-400">+${formatCurrency(amounts.income)}</div>` : ''}
+                                    ${amounts.expense > 0 ? `<div class="text-red-400">-${formatCurrency(amounts.expense)}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function downloadCSV(month) {
+            if (!month) {
+                showToast('Please select a month first', 'error');
+                return;
+            }
+            
+            const [year, monthNum] = month.split('-');
+            const monthTransactions = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                return tDate.getFullYear() == year && tDate.getMonth() == (monthNum - 1);
+            });
+            
+            if (monthTransactions.length === 0) {
+                showToast('No transactions found for this month', 'error');
+                return;
+            }
+            
+            const headers = ['Date', 'Type', 'Category', 'Description', 'Amount'];
+            const csvContent = [
+                headers.join(','),
+                ...monthTransactions.map(t => [
+                    t.date,
+                    t.type,
+                    t.category,
+                    `"${t.description}"`,
+                    t.amount
+                ].join(','))
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hostelhive-report-${month}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showToast('CSV report downloaded successfully!');
+        }
+
+        function downloadPDF(month) {
+            if (!month) {
+                showToast('Please select a month first', 'error');
+                return;
+            }
+            
+            showToast('PDF download feature coming soon!', 'warning');
+        }
+
+        // Settings Functions
+        function loadSettings() {
+            if (currentUser) {
+                document.getElementById('profile-name').value = currentUser.name;
+                document.getElementById('profile-email').value = currentUser.email;
+            }
+            document.getElementById('currency-select').value = currentCurrency;
+        }
+
+        function updateProfile(name) {
+            if (currentUser) {
+                currentUser.name = name;
+                localStorage.setItem('hostelhive_user', JSON.stringify(currentUser));
+                updateDashboard();
+                showToast('Profile updated successfully!');
+            }
+        }
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark', isDarkMode);
+            
+            const themeIcons = document.querySelectorAll('#theme-toggle i, #theme-toggle-settings i');
+            themeIcons.forEach(icon => {
+                icon.className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
+            });
+            
+            localStorage.setItem('hostelhive_theme', isDarkMode ? 'dark' : 'light');
+        }
+
+        function deleteAccount() {
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                logout();
+                showToast('Account deleted successfully!');
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved data
+            const savedUser = localStorage.getItem('hostelhive_user');
+            const savedTransactions = localStorage.getItem('hostelhive_transactions');
+            const savedBudgets = localStorage.getItem('hostelhive_budgets');
+            const savedTheme = localStorage.getItem('hostelhive_theme');
+            
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
+                budgets = savedBudgets ? JSON.parse(savedBudgets) : [];
+                showDashboard();
+            }
+            
+            if (savedTheme === 'dark') {
+                toggleTheme();
+            }
+            
+            // Navigation event listeners
+            document.getElementById('nav-login').addEventListener('click', () => showAuthPage('login'));
+            document.getElementById('nav-signup').addEventListener('click', () => showAuthPage('signup'));
+            document.getElementById('hero-signup').addEventListener('click', () => showAuthPage('signup'));
+            document.getElementById('footer-signup').addEventListener('click', () => showAuthPage('signup'));
+            document.getElementById('hero-demo').addEventListener('click', () => {
+                // Load demo data
+                currentUser = { id: 'demo', name: 'Demo User', email: 'demo@hostelhive.com' };
+                transactions = [...sampleTransactions];
+                budgets = [...sampleBudgets];
+                showDashboard();
+                showToast('Welcome to the demo!');
+            });
+            
+            // Auth form toggles
+            document.getElementById('show-signup').addEventListener('click', () => showAuthPage('signup'));
+            document.getElementById('show-login').addEventListener('click', () => showAuthPage('login'));
+            document.getElementById('back-to-home').addEventListener('click', () => showPage('landing-page'));
+            document.getElementById('back-to-home-signup').addEventListener('click', () => showPage('landing-page'));
+            
+            // Auth forms
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                
+                if (login(email, password)) {
+                    this.reset();
+                } else {
+                    showToast('Invalid credentials. Please try again.', 'error');
+                }
+            });
+            
+            document.getElementById('signupForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const name = document.getElementById('signup-name').value;
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+                
+                if (signup(name, email, password)) {
+                    this.reset();
+                } else {
+                    showToast('Please fill all fields correctly.', 'error');
+                }
+            });
+            
+            // Dashboard tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    showTab(btn.dataset.tab);
+                });
+            });
+            
+            // Quick add forms
+            document.getElementById('quick-income-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const amount = document.getElementById('income-amount').value;
+                const description = document.getElementById('income-description').value;
+                const category = document.getElementById('income-category').value;
+                
+                if (addTransaction('income', amount, description, category)) {
+                    this.reset();
+                }
+            });
+            
+            document.getElementById('quick-expense-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const amount = document.getElementById('expense-amount').value;
+                const description = document.getElementById('expense-description').value;
+                const category = document.getElementById('expense-category').value;
+                
+                if (addTransaction('expense', amount, description, category)) {
+                    this.reset();
+                }
+            });
+            
+            // Transaction search and filter
+            document.getElementById('search-transactions').addEventListener('input', loadTransactions);
+            document.getElementById('filter-category').addEventListener('change', loadTransactions);
+            
+            // Budget form
+            document.getElementById('budget-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const category = document.getElementById('budget-category').value;
+                const limit = document.getElementById('budget-limit').value;
+                
+                addBudget(category, limit);
+                this.reset();
+            });
+            
+            // Reports
+            document.getElementById('report-month').addEventListener('change', function() {
+                generateReport(this.value);
+            });
+            
+            document.getElementById('download-csv').addEventListener('click', function() {
+                const month = document.getElementById('report-month').value;
+                downloadCSV(month);
+            });
+            
+            document.getElementById('download-pdf').addEventListener('click', function() {
+                const month = document.getElementById('report-month').value;
+                downloadPDF(month);
+            });
+            
+            // Settings
+            document.getElementById('profile-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const name = document.getElementById('profile-name').value;
+                updateProfile(name);
+            });
+            
+            document.getElementById('currency-select').addEventListener('change', function() {
+                currentCurrency = this.value;
+                localStorage.setItem('hostelhive_currency', currentCurrency);
+                updateDashboard();
+                showToast('Currency updated successfully!');
+            });
+            
+            document.getElementById('delete-account').addEventListener('click', deleteAccount);
+            
+            // Theme toggles
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('theme-toggle-settings').addEventListener('click', toggleTheme);
+            
+            // Logout
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            
+            // Transaction modal
+            document.getElementById('close-modal').addEventListener('click', function() {
+                document.getElementById('transaction-modal').classList.remove('show');
+            });
+            
+            document.getElementById('transaction-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const id = document.getElementById('edit-transaction-id').value;
+                const data = {
+                    type: document.getElementById('edit-type').value,
+                    amount: parseFloat(document.getElementById('edit-amount').value),
+                    description: document.getElementById('edit-description').value,
+                    category: document.getElementById('edit-category').value,
+                    date: document.getElementById('edit-date').value
+                };
+                
+                editTransaction(id, data);
+                document.getElementById('transaction-modal').classList.remove('show');
+            });
+            
+            document.getElementById('delete-transaction').addEventListener('click', function() {
+                const id = document.getElementById('edit-transaction-id').value;
+                if (confirm('Are you sure you want to delete this transaction?')) {
+                    deleteTransaction(id);
+                    document.getElementById('transaction-modal').classList.remove('show');
+                }
+            });
+            
+            // Update category options when transaction type changes
+            document.getElementById('edit-type').addEventListener('change', function() {
+                const categorySelect = document.getElementById('edit-category');
+                const categories = this.value === 'income' 
+                    ? ['Salary', 'Freelance', 'Family', 'Scholarship', 'Other']
+                    : ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Education', 'Health', 'Other'];
+                
+                categorySelect.innerHTML = '<option value="" class="bg-gray-800 text-white">Select Category</option>' + 
+                    categories.map(cat => `<option value="${cat}" class="bg-gray-800 text-white">${cat}</option>`).join('');
+            });
+            
+            // FAQ toggles
+            document.querySelectorAll('.faq-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const content = this.nextElementSibling;
+                    const icon = this.querySelector('i');
+                    
+                    content.classList.toggle('hidden');
+                    icon.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+                });
+            });
+            
+            // Close modal when clicking outside
+            document.getElementById('transaction-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('show');
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9764d007044059c6',t:'MTc1NjM5NDYzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
