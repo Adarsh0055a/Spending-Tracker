@@ -848,27 +848,33 @@
                 
                 // Check if user data already exists
                 const existingUserData = localStorage.getItem(`hostelhive_user_${userId}`);
-                const existingTransactions = localStorage.getItem(`hostelhive_transactions_${userId}`);
-                const existingBudgets = localStorage.getItem(`hostelhive_budgets_${userId}`);
                 
                 if (existingUserData) {
-                    // Load existing user data exactly as saved
+                    // Clear any existing data from previous session
+                    currentUser = null;
+                    transactions = [];
+                    budgets = [];
+                    
+                    // Load the correct user's data
                     currentUser = JSON.parse(existingUserData);
+                    
+                    const existingTransactions = localStorage.getItem(`hostelhive_transactions_${userId}`);
+                    const existingBudgets = localStorage.getItem(`hostelhive_budgets_${userId}`);
+                    
                     transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
                     budgets = existingBudgets ? JSON.parse(existingBudgets) : [];
                     
+                    // Set current session data
+                    localStorage.setItem('hostelhive_current_user', userId);
+                    
                     showToast(`Welcome back, ${currentUser.name}!`);
+                    showDashboard();
+                    return true;
                 } else {
                     // This is a new user - check if they meant to sign up instead
                     showToast('Account not found. Please sign up first or check your credentials.', 'error');
                     return false;
                 }
-                
-                // Set current session data
-                localStorage.setItem('hostelhive_current_user', userId);
-                
-                showDashboard();
-                return true;
             }
             return false;
         }
@@ -918,10 +924,27 @@
         }
 
         function logout() {
+            // Clear all session data completely
             currentUser = null;
             transactions = [];
             budgets = [];
+            
+            // Clear charts if they exist
+            if (window.categoryChartInstance) {
+                window.categoryChartInstance.destroy();
+                window.categoryChartInstance = null;
+            }
+            if (window.trendChartInstance) {
+                window.trendChartInstance.destroy();
+                window.trendChartInstance = null;
+            }
+            
+            // Remove current user session
             localStorage.removeItem('hostelhive_current_user');
+            
+            // Reset forms
+            document.querySelectorAll('form').forEach(form => form.reset());
+            
             showPage('landing-page');
             showToast('Logged out successfully!');
         }
@@ -1639,14 +1662,26 @@
             
             if (currentUserId) {
                 const savedUser = localStorage.getItem(`hostelhive_user_${currentUserId}`);
-                const savedTransactions = localStorage.getItem(`hostelhive_transactions_${currentUserId}`);
-                const savedBudgets = localStorage.getItem(`hostelhive_budgets_${currentUserId}`);
                 
                 if (savedUser) {
+                    // Ensure clean state before loading user data
+                    currentUser = null;
+                    transactions = [];
+                    budgets = [];
+                    
+                    // Load user-specific data
                     currentUser = JSON.parse(savedUser);
+                    
+                    const savedTransactions = localStorage.getItem(`hostelhive_transactions_${currentUserId}`);
+                    const savedBudgets = localStorage.getItem(`hostelhive_budgets_${currentUserId}`);
+                    
                     transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
                     budgets = savedBudgets ? JSON.parse(savedBudgets) : [];
+                    
                     showDashboard();
+                } else {
+                    // Invalid session, clear it
+                    localStorage.removeItem('hostelhive_current_user');
                 }
             }
             
@@ -1840,5 +1875,6 @@
             });
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97c8238b56a459ca',t:'MTc1NzQzNjE0OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97c8324b724e59ca',t:'MTc1NzQzNjc1MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
+
