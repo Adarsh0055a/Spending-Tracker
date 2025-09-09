@@ -7,6 +7,35 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Firebase Globals (Provided by Canvas Environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Check for required Firebase config
+        if (!firebaseConfig.apiKey) {
+            console.error("Firebase config is missing. Please ensure it's provided.");
+        }
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Make the Firebase objects available globally
+        window.firebase = {
+            auth, db, appId, initialAuthToken,
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken,
+            doc, getDoc, setDoc, onSnapshot, collection, addDoc, query, where
+        };
+        console.log("Firebase SDKs loaded and initialized.");
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -91,6 +120,25 @@
         <div class="flex items-center space-x-3">
             <i id="toast-icon" class="fas fa-check-circle text-green-400"></i>
             <span id="toast-message">Success!</span>
+        </div>
+    </div>
+    
+    <!-- Modal for Alerts -->
+    <div id="alert-modal" class="modal">
+        <div class="glass rounded-3xl p-6 w-full max-w-sm mx-4 text-center">
+            <div class="flex justify-center mb-4">
+                <i id="alert-icon" class="fas fa-exclamation-triangle text-3xl text-yellow-400"></i>
+            </div>
+            <h3 id="alert-title" class="text-xl font-semibold text-white mb-2">Alert</h3>
+            <p id="alert-message" class="text-white/80 mb-6">This is an alert message.</p>
+            <div class="flex gap-4 justify-center">
+                <button id="alert-confirm" class="gradient-bg-alt rounded-xl py-3 px-6 text-white font-semibold hover:opacity-90 transition-all">
+                    OK
+                </button>
+                <button id="alert-cancel" class="glass rounded-xl py-3 px-6 text-white font-semibold hover:bg-white/20 transition-all hidden">
+                    Cancel
+                </button>
+            </div>
         </div>
     </div>
 
@@ -353,7 +401,7 @@
                         <h1 class="text-2xl font-bold text-white">HostelHive</h1>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <span id="user-name" class="text-white/80">Welcome back!</span>
+                        <span id="user-info" class="text-white/80 text-sm md:text-base">Loading...</span>
                         <button id="logout-btn" class="glass rounded-xl px-4 py-2 text-white hover:bg-white/20 transition-all">
                             <i class="fas fa-sign-out-alt mr-2"></i>Logout
                         </button>
@@ -493,7 +541,7 @@
                             <input type="text" id="search-transactions" placeholder="Search transactions..."
                                 class="glass rounded-xl p-3 text-white placeholder-white/50 border-0 focus:ring-2 focus:ring-purple-400 outline-none">
                             <select id="filter-category"
-                                class="glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                                class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
                                 <option value="" class="bg-gray-800 text-white">All Categories</option>
                                 <option value="Food" class="bg-gray-800 text-white">Food</option>
                                 <option value="Transport" class="bg-gray-800 text-white">Transport</option>
@@ -565,7 +613,7 @@
                         <h3 class="text-2xl font-semibold text-white mb-4 md:mb-0">Monthly Reports</h3>
                         <div class="flex flex-col sm:flex-row gap-4">
                             <select id="report-month"
-                                class="glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
+                                class="w-full glass rounded-xl p-3 text-white border-0 focus:ring-2 focus:ring-purple-400 outline-none bg-white/10">
                                 <option value="" class="bg-gray-800 text-white">Select Month</option>
                             </select>
                             <button id="download-csv" class="glass rounded-xl px-6 py-3 text-white hover:bg-white/20 transition-all">
@@ -708,53 +756,32 @@
             </form>
         </div>
     </div>
-
+    
     <script>
         // Application State
         let currentUser = null;
         let transactions = [];
         let budgets = [];
+        let isAuthReady = false;
         let isDarkMode = false;
         let currentCurrency = 'INR';
+        let transactionsUnsubscribe = null;
+        let budgetsUnsubscribe = null;
         
-        // Sample data for demo
+        // Sample data for new users
         const sampleTransactions = [
-            {
-                id: '1',
-                type: 'expense',
-                amount: 250,
-                description: 'Lunch at canteen',
-                category: 'Food',
-                date: new Date().toISOString().split('T')[0],
-                paymentMode: 'Cash'
-            },
-            {
-                id: '2',
-                type: 'income',
-                amount: 15000,
-                description: 'Monthly allowance',
-                category: 'Family',
-                date: new Date().toISOString().split('T')[0],
-                paymentMode: 'Bank Transfer'
-            },
-            {
-                id: '3',
-                type: 'expense',
-                amount: 80,
-                description: 'Bus fare',
-                category: 'Transport',
-                date: new Date().toISOString().split('T')[0],
-                paymentMode: 'Cash'
-            }
+            { amount: 250, description: 'Lunch at canteen', category: 'Food', date: new Date().toISOString().split('T')[0], type: 'expense' },
+            { amount: 15000, description: 'Monthly allowance', category: 'Family', date: new Date().toISOString().split('T')[0], type: 'income' },
+            { amount: 80, description: 'Bus fare', category: 'Transport', date: new Date().toISOString().split('T')[0], type: 'expense' }
         ];
         
         const sampleBudgets = [
-            { id: '1', category: 'Food', limit: 5000, spent: 1250 },
-            { id: '2', category: 'Transport', limit: 2000, spent: 480 },
-            { id: '3', category: 'Entertainment', limit: 3000, spent: 800 }
+            { category: 'Food', limit: 5000, spent: 0 },
+            { category: 'Transport', limit: 2000, spent: 0 },
+            { category: 'Entertainment', limit: 3000, spent: 0 }
         ];
 
-        // Utility Functions
+        // --- Utility Functions ---
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
@@ -776,23 +803,48 @@
             }, 3000);
         }
 
+        function showAlert(message, title = 'Alert', type = 'warning', onConfirm = null) {
+            const modal = document.getElementById('alert-modal');
+            const icon = document.getElementById('alert-icon');
+            const titleEl = document.getElementById('alert-title');
+            const messageEl = document.getElementById('alert-message');
+            const confirmBtn = document.getElementById('alert-confirm');
+            const cancelBtn = document.getElementById('alert-cancel');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+
+            icon.className = `fas text-3xl`;
+            if (type === 'success') {
+                icon.className += ' fa-check-circle text-green-400';
+            } else if (type === 'error') {
+                icon.className += ' fa-times-circle text-red-400';
+            } else {
+                icon.className += ' fa-exclamation-triangle text-yellow-400';
+            }
+
+            confirmBtn.onclick = () => {
+                modal.classList.remove('show');
+                if (onConfirm) onConfirm();
+            };
+            cancelBtn.classList.add('hidden');
+            modal.classList.add('show');
+        }
+        
         function formatCurrency(amount) {
             const symbols = { INR: '₹', USD: '$', EUR: '€' };
-            return `${symbols[currentCurrency]}${amount.toLocaleString()}`;
+            const symbol = symbols[currentCurrency] || '₹';
+            return `${symbol}${amount.toLocaleString()}`;
         }
-
-        function generateId() {
-            return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-        }
-
-        // Navigation Functions
+        
+        // --- Navigation Functions ---
         function showPage(pageId) {
             document.querySelectorAll('#main-content > div').forEach(page => {
                 page.classList.add('hidden');
             });
             document.getElementById(pageId).classList.remove('hidden');
         }
-
+        
         function showAuthPage(formType = 'login') {
             showPage('auth-page');
             if (formType === 'login') {
@@ -803,188 +855,211 @@
                 document.getElementById('signup-form').classList.remove('hidden');
             }
         }
-
+        
         function showDashboard() {
             showPage('dashboard-page');
             showTab('overview');
-            updateDashboard();
         }
-
+        
         function showTab(tabName) {
-            // Update tab buttons
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active', 'gradient-bg-alt');
                 btn.classList.add('glass', 'hover:bg-white/20');
             });
             
             const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
-            activeBtn.classList.remove('glass', 'hover:bg-white/20');
-            activeBtn.classList.add('active', 'gradient-bg-alt');
+            if (activeBtn) {
+                activeBtn.classList.remove('glass', 'hover:bg-white/20');
+                activeBtn.classList.add('active', 'gradient-bg-alt');
+            }
             
-            // Update tab content
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
-            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            const content = document.getElementById(`${tabName}-tab`);
+            if (content) {
+                content.classList.remove('hidden');
+            }
             
-            // Load tab-specific data
-            if (tabName === 'transactions') {
-                loadTransactions();
-            } else if (tabName === 'budgets') {
-                loadBudgets();
-            } else if (tabName === 'reports') {
-                loadReports();
-            } else if (tabName === 'settings') {
-                loadSettings();
-            }
+            if (tabName === 'transactions') { loadTransactions(); }
+            else if (tabName === 'budgets') { loadBudgets(); }
+            else if (tabName === 'reports') { loadReports(); }
+            else if (tabName === 'settings') { loadSettings(); }
+            updateDashboard();
         }
-
-        // Authentication Functions
-        function login(email, password) {
-            // Simple validation - in real app, this would be server-side
-            if (email && password.length >= 6) {
-                // Create consistent user ID based on email
-                const userId = btoa(email).replace(/[^a-zA-Z0-9]/g, '');
-                
-                // Check if user data already exists
-                const existingUserData = localStorage.getItem(`hostelhive_user_${userId}`);
-                
-                if (existingUserData) {
-                    // Clear any existing data from previous session
-                    currentUser = null;
-                    transactions = [];
-                    budgets = [];
-                    
-                    // Load the correct user's data
-                    currentUser = JSON.parse(existingUserData);
-                    
-                    const existingTransactions = localStorage.getItem(`hostelhive_transactions_${userId}`);
-                    const existingBudgets = localStorage.getItem(`hostelhive_budgets_${userId}`);
-                    
-                    transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
-                    budgets = existingBudgets ? JSON.parse(existingBudgets) : [];
-                    
-                    // Set current session data
-                    localStorage.setItem('hostelhive_current_user', userId);
-                    
-                    showToast(`Welcome back, ${currentUser.name}!`);
-                    showDashboard();
-                    return true;
+        
+        // --- Firebase Integration & Authentication ---
+        async function setupFirebase() {
+            const { auth, db, appId, initialAuthToken, onAuthStateChanged, signInWithCustomToken, signInAnonymously } = window.firebase;
+            
+            // Sign in anonymously or with custom token
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // This is a new user - check if they meant to sign up instead
-                    showToast('Account not found. Please sign up first or check your credentials.', 'error');
-                    return false;
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase auth failed:", error);
+            }
+            
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    isAuthReady = true;
+                    console.log("User authenticated:", user.uid);
+                    // Start listening to Firestore data
+                    listenForData(user.uid);
+                    checkAndCreateUserDoc(user);
+                } else {
+                    currentUser = null;
+                    isAuthReady = true;
+                    console.log("User signed out or not authenticated.");
+                    if (transactionsUnsubscribe) transactionsUnsubscribe();
+                    if (budgetsUnsubscribe) budgetsUnsubscribe();
+                    showPage('landing-page');
+                }
+            });
+        }
+        
+        async function checkAndCreateUserDoc(user) {
+            const { db, doc, getDoc, setDoc, appId, collection, addDoc } = window.firebase;
+            const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/profile/main`);
+            const docSnap = await getDoc(userDocRef);
+            
+            if (!docSnap.exists()) {
+                console.log("Creating new user profile doc.");
+                await setDoc(userDocRef, {
+                    name: 'New User',
+                    email: user.email || 'N/A',
+                    createdAt: new Date()
+                });
+                
+                // Add sample data for new users
+                const transactionsColRef = collection(db, `artifacts/${appId}/users/${user.uid}/transactions`);
+                for (const t of sampleTransactions) {
+                    await addDoc(transactionsColRef, t);
+                }
+                const budgetsColRef = collection(db, `artifacts/${appId}/users/${user.uid}/budgets`);
+                for (const b of sampleBudgets) {
+                    await addDoc(budgetsColRef, b);
                 }
             }
-            return false;
         }
-
-        function signup(name, email, password) {
-            if (name && email && password.length >= 6) {
-                // Create consistent user ID based on email
-                const userId = btoa(email).replace(/[^a-zA-Z0-9]/g, '');
+        
+        function listenForData(userId) {
+            const { db, onSnapshot, collection, appId, query } = window.firebase;
+            
+            // Unsubscribe from previous listeners
+            if (transactionsUnsubscribe) transactionsUnsubscribe();
+            if (budgetsUnsubscribe) budgetsUnsubscribe();
+            
+            // Listen to transactions
+            const transactionsRef = collection(db, `artifacts/${appId}/users/${userId}/transactions`);
+            transactionsUnsubscribe = onSnapshot(transactionsRef, (snapshot) => {
+                transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateDashboard();
+            }, (error) => {
+                console.error("Error listening to transactions: ", error);
+            });
+            
+            // Listen to budgets
+            const budgetsRef = collection(db, `artifacts/${appId}/users/${userId}/budgets`);
+            budgetsUnsubscribe = onSnapshot(budgetsRef, (snapshot) => {
+                budgets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateBudgetSpent();
+                updateDashboard();
+            }, (error) => {
+                console.error("Error listening to budgets: ", error);
+            });
+        }
+        
+        async function signup(name, email, password) {
+            const { auth, createUserWithEmailAndPassword, db, doc, setDoc, addDoc, collection, appId } = window.firebase;
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
                 
-                // Check if user already exists
-                const existingUserData = localStorage.getItem(`hostelhive_user_${userId}`);
-                if (existingUserData) {
-                    showToast('Account already exists! Please login instead.', 'error');
-                    return false;
-                }
-                
-                currentUser = {
-                    id: userId,
+                // Create user profile document with name
+                await setDoc(doc(db, `artifacts/${appId}/users/${user.uid}/profile/main`), {
                     name: name,
-                    email: email,
-                    createdAt: new Date().toISOString()
-                };
+                    email: user.email,
+                    createdAt: new Date()
+                });
                 
-                // Give new users some sample data to get started
-                transactions = [...sampleTransactions.map(t => ({
-                    ...t,
-                    id: generateId(),
-                    date: new Date().toISOString().split('T')[0]
-                }))];
-                
-                budgets = [...sampleBudgets.map(b => ({
-                    ...b,
-                    id: generateId()
-                }))];
-                
-                // Save user-specific data
-                localStorage.setItem(`hostelhive_user_${userId}`, JSON.stringify(currentUser));
-                localStorage.setItem(`hostelhive_transactions_${userId}`, JSON.stringify(transactions));
-                localStorage.setItem(`hostelhive_budgets_${userId}`, JSON.stringify(budgets));
-                localStorage.setItem('hostelhive_current_user', userId);
+                // Add sample data
+                const transactionsColRef = collection(db, `artifacts/${appId}/users/${user.uid}/transactions`);
+                for (const t of sampleTransactions) {
+                    await addDoc(transactionsColRef, t);
+                }
+                const budgetsColRef = collection(db, `artifacts/${appId}/users/${user.uid}/budgets`);
+                for (const b of sampleBudgets) {
+                    await addDoc(budgetsColRef, b);
+                }
                 
                 showToast(`Welcome to HostelHive, ${name}!`);
-                showDashboard();
                 return true;
+            } catch (error) {
+                console.error("Signup failed:", error);
+                showToast(`Signup failed: ${error.message}`, 'error');
+                return false;
             }
-            return false;
+        }
+        
+        async function login(email, password) {
+            const { auth, signInWithEmailAndPassword } = window.firebase;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showToast('Logged in successfully!');
+                return true;
+            } catch (error) {
+                console.error("Login failed:", error);
+                showToast(`Login failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function logout() {
+            const { auth, signOut } = window.firebase;
+            try {
+                await signOut(auth);
+                // The onAuthStateChanged listener will handle UI changes
+                showToast('Logged out successfully!');
+            } catch (error) {
+                console.error("Logout failed:", error);
+                showToast(`Logout failed: ${error.message}`, 'error');
+            }
         }
 
-        function logout() {
-            // Clear all session data completely
-            currentUser = null;
-            transactions = [];
-            budgets = [];
-            
-            // Clear charts if they exist
-            if (window.categoryChartInstance) {
-                window.categoryChartInstance.destroy();
-                window.categoryChartInstance = null;
-            }
-            if (window.trendChartInstance) {
-                window.trendChartInstance.destroy();
-                window.trendChartInstance = null;
-            }
-            
-            // Remove current user session
-            localStorage.removeItem('hostelhive_current_user');
-            
-            // Reset forms
-            document.querySelectorAll('form').forEach(form => form.reset());
-            
-            showPage('landing-page');
-            showToast('Logged out successfully!');
-        }
-
-        // Dashboard Functions
-        function updateDashboard() {
+        // --- Dashboard Functions ---
+        async function updateDashboard() {
             if (!currentUser) return;
             
-            document.getElementById('user-name').textContent = `Welcome back, ${currentUser.name}!`;
+            // Get user profile name
+            const { db, doc, getDoc, appId } = window.firebase;
+            const userDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/profile/main`);
+            const docSnap = await getDoc(userDocRef);
+            const userName = docSnap.exists() ? docSnap.data().name : 'User';
+            document.getElementById('user-info').textContent = `${userName} (ID: ${currentUser.uid})`;
             
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
             
             const monthlyTransactions = transactions.filter(t => {
-                const tDate = new Date(t.date);
+                const tDate = t.date ? new Date(t.date.seconds * 1000) : new Date();
                 return tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear;
             });
             
-            const totalIncome = transactions
-                .filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + t.amount, 0);
-                
-            const totalExpenses = transactions
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0);
-                
-            const balance = totalIncome - totalExpenses;
-            
-            // Monthly totals for display
             const monthlyIncome = monthlyTransactions
                 .filter(t => t.type === 'income')
                 .reduce((sum, t) => sum + t.amount, 0);
-                
+            
             const monthlyExpenses = monthlyTransactions
                 .filter(t => t.type === 'expense')
                 .reduce((sum, t) => sum + t.amount, 0);
-                
+            
             const monthlyBalance = monthlyIncome - monthlyExpenses;
             
-            // Update DOM elements
             document.getElementById('total-income').textContent = formatCurrency(monthlyIncome);
             document.getElementById('total-expenses').textContent = formatCurrency(monthlyExpenses);
             document.getElementById('balance').textContent = formatCurrency(monthlyBalance);
@@ -1001,10 +1076,7 @@
                 balanceStatus.className = 'text-blue-400 text-sm mt-2';
             }
             
-            // Update expense form state
-            updateExpenseFormState(totalIncome, balance);
-            
-            // Update charts
+            updateExpenseFormState(monthlyIncome, monthlyBalance);
             updateCharts();
         }
         
@@ -1014,53 +1086,37 @@
             const expenseSubmitBtn = document.getElementById('expense-submit-btn');
             
             if (totalIncome === 0) {
-                // No income added yet
                 balanceWarning.classList.remove('hidden');
                 balanceWarning.className = 'mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl';
-                balanceWarning.innerHTML = `
-                    <div class="flex items-center text-red-300">
-                        <i class="fas fa-exclamation-circle mr-2"></i>
-                        <span class="text-sm">Please add your income first before recording expenses!</span>
-                    </div>
-                `;
+                balanceWarning.innerHTML = `<div class="flex items-center text-red-300"> <i class="fas fa-exclamation-circle mr-2"></i> <span class="text-sm">Please add your income first before recording expenses!</span> </div>`;
                 expenseSubmitBtn.disabled = true;
                 expenseSubmitBtn.className = 'w-full bg-gray-500 rounded-xl py-3 text-white font-semibold cursor-not-allowed';
                 expenseSubmitBtn.textContent = 'Add Income First';
-            } else if (availableBalance <= 0) {
-                // No balance available
-                balanceWarning.classList.remove('hidden');
-                balanceWarning.className = 'mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl';
-                balanceWarning.innerHTML = `
-                    <div class="flex items-center text-red-300">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>
-                        <span class="text-sm">No balance available for expenses!</span>
-                    </div>
-                `;
-                expenseSubmitBtn.disabled = true;
-                expenseSubmitBtn.className = 'w-full bg-gray-500 rounded-xl py-3 text-white font-semibold cursor-not-allowed';
-                expenseSubmitBtn.textContent = 'Insufficient Balance';
             } else {
-                // Show available balance
                 balanceWarning.classList.remove('hidden');
                 balanceWarning.className = 'mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-xl';
                 availableBalanceSpan.textContent = formatCurrency(availableBalance);
-                balanceWarning.innerHTML = `
-                    <div class="flex items-center text-blue-300">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <span class="text-sm">Available Balance: <span id="available-balance">${formatCurrency(availableBalance)}</span></span>
-                    </div>
-                `;
+                balanceWarning.innerHTML = `<div class="flex items-center text-blue-300"> <i class="fas fa-info-circle mr-2"></i> <span class="text-sm">Available Balance: <span id="available-balance">${formatCurrency(availableBalance)}</span></span> </div>`;
                 expenseSubmitBtn.disabled = false;
                 expenseSubmitBtn.className = 'w-full bg-red-500 hover:bg-red-600 rounded-xl py-3 text-white font-semibold transition-all';
                 expenseSubmitBtn.textContent = 'Add Expense';
             }
+            
+            if (availableBalance <= 0) {
+                balanceWarning.className = 'mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl';
+                balanceWarning.innerHTML = `<div class="flex items-center text-red-300"> <i class="fas fa-exclamation-triangle mr-2"></i> <span class="text-sm">No balance available for expenses!</span> </div>`;
+                expenseSubmitBtn.disabled = true;
+                expenseSubmitBtn.className = 'w-full bg-gray-500 rounded-xl py-3 text-white font-semibold cursor-not-allowed';
+                expenseSubmitBtn.textContent = 'Insufficient Balance';
+            }
         }
-
+        
+        // --- Chart Functions ---
         function updateCharts() {
             updateCategoryChart();
             updateTrendChart();
         }
-
+        
         function updateCategoryChart() {
             const ctx = document.getElementById('categoryChart');
             if (!ctx) return;
@@ -1117,7 +1173,7 @@
                 }
             });
         }
-
+        
         function updateTrendChart() {
             const ctx = document.getElementById('trendChart');
             if (!ctx) return;
@@ -1132,14 +1188,14 @@
                 months.push(date.toLocaleDateString('en-US', { month: 'short' }));
                 
                 const monthTransactions = transactions.filter(t => {
-                    const tDate = new Date(t.date);
+                    const tDate = t.date ? new Date(t.date.seconds * 1000) : new Date();
                     return tDate.getMonth() === date.getMonth() && tDate.getFullYear() === date.getFullYear();
                 });
                 
                 const monthIncome = monthTransactions
                     .filter(t => t.type === 'income')
                     .reduce((sum, t) => sum + t.amount, 0);
-                    
+                
                 const monthExpenses = monthTransactions
                     .filter(t => t.type === 'expense')
                     .reduce((sum, t) => sum + t.amount, 0);
@@ -1203,114 +1259,94 @@
                 }
             });
         }
-
-        // Transaction Functions
-        function addTransaction(type, amount, description, category, date = null) {
-            // Check if user is trying to add expense without any income
-            if (type === 'expense') {
-                const totalIncome = transactions
-                    .filter(t => t.type === 'income')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                if (totalIncome === 0) {
-                    showToast('Please add your income first before recording expenses!', 'error');
-                    return false;
-                }
-                
-                // Check if expense would exceed available balance
-                const totalExpenses = transactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((sum, t) => sum + t.amount, 0);
-                
-                const currentBalance = totalIncome - totalExpenses;
-                
-                if (parseFloat(amount) > currentBalance) {
-                    showToast(`Insufficient balance! Available: ${formatCurrency(currentBalance)}`, 'error');
-                    return false;
-                }
+        
+        // --- Firestore Data Operations ---
+        async function addTransaction(type, amount, description, category) {
+            if (!currentUser) {
+                showAlert('Please sign in to add transactions.');
+                return false;
             }
+            const { db, collection, addDoc, appId } = window.firebase;
             
-            const transaction = {
-                id: generateId(),
-                type: type,
+            const transactionData = {
+                type,
                 amount: parseFloat(amount),
-                description: description,
-                category: category,
-                date: date || new Date().toISOString().split('T')[0],
-                paymentMode: 'Cash'
+                description,
+                category,
+                date: new Date(),
             };
             
-            transactions.push(transaction);
-            if (currentUser) {
-                localStorage.setItem(`hostelhive_transactions_${currentUser.id}`, JSON.stringify(transactions));
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUser.uid}/transactions`), transactionData);
+                showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
+                checkBudgetAlerts(category, amount);
+                return true;
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showAlert(`Failed to add transaction. Please try again.`, 'Error', 'error');
+                return false;
             }
-            
-            updateDashboard();
-            checkBudgetAlerts(category, amount);
-            
-            showToast(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
-            return true;
         }
-
-        function editTransaction(id, data) {
-            const index = transactions.findIndex(t => t.id === id);
-            if (index !== -1) {
-                transactions[index] = { ...transactions[index], ...data };
-                if (currentUser) {
-                    localStorage.setItem(`hostelhive_transactions_${currentUser.id}`, JSON.stringify(transactions));
-                }
-                updateDashboard();
-                loadTransactions();
+        
+        async function editTransaction(id, data) {
+            if (!currentUser) {
+                showAlert('Please sign in to edit transactions.');
+                return;
+            }
+            const { db, doc, setDoc, appId } = window.firebase;
+            
+            try {
+                const transactionDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/transactions`, id);
+                await setDoc(transactionDocRef, data, { merge: true });
                 showToast('Transaction updated successfully!');
+            } catch (error) {
+                console.error("Error updating document: ", error);
+                showAlert(`Failed to update transaction. Please try again.`, 'Error', 'error');
             }
         }
-
-        function deleteTransaction(id) {
-            transactions = transactions.filter(t => t.id !== id);
-            if (currentUser) {
-                localStorage.setItem(`hostelhive_transactions_${currentUser.id}`, JSON.stringify(transactions));
+        
+        async function deleteTransaction(id) {
+            if (!currentUser) {
+                showAlert('Please sign in to delete transactions.');
+                return;
             }
-            updateDashboard();
-            loadTransactions();
-            showToast('Transaction deleted successfully!');
+            const { db, doc, deleteDoc, appId } = window.firebase;
+            
+            try {
+                await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUser.uid}/transactions`, id));
+                showToast('Transaction deleted successfully!');
+            } catch (error) {
+                console.error("Error removing document: ", error);
+                showAlert(`Failed to delete transaction. Please try again.`, 'Error', 'error');
+            }
         }
-
+        
         function loadTransactions() {
             const container = document.getElementById('transactions-list');
             if (!container) return;
             
             if (transactions.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-white/60 py-8">
-                        <i class="fas fa-receipt text-4xl mb-4"></i>
-                        <p>No transactions yet. Add your first transaction to get started!</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center text-white/60 py-8"> <i class="fas fa-receipt text-4xl mb-4"></i> <p>No transactions yet. Add your first transaction to get started!</p> </div>`;
                 return;
             }
             
             const searchInput = document.getElementById('search-transactions');
             const filterSelect = document.getElementById('filter-category');
             
-            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-            const filterCategory = filterSelect ? filterSelect.value : '';
+            const searchTerm = searchInput.value.toLowerCase();
+            const filterCategory = filterSelect.value;
             
-            let filteredTransactions = transactions.filter(t => {
-                const matchesSearch = !searchTerm || 
-                    t.description.toLowerCase().includes(searchTerm) || 
-                    t.category.toLowerCase().includes(searchTerm);
+            const filteredTransactions = transactions.filter(t => {
+                const matchesSearch = !searchTerm || t.description.toLowerCase().includes(searchTerm) || t.category.toLowerCase().includes(searchTerm);
                 const matchesCategory = !filterCategory || t.category === filterCategory;
                 return matchesSearch && matchesCategory;
             });
             
-            // Sort by date (newest first)
-            filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            // Limit to 50 transactions for performance
-            const displayTransactions = filteredTransactions.slice(0, 50);
+            filteredTransactions.sort((a, b) => (b.date.seconds - a.date.seconds));
+            const displayTransactions = filteredTransactions;
             
             const transactionHTML = displayTransactions.map(t => {
-                const formattedDate = new Date(t.date).toLocaleDateString();
+                const formattedDate = new Date(t.date.seconds * 1000).toLocaleDateString();
                 const amountColor = t.type === 'income' ? 'text-green-400' : 'text-red-400';
                 const bgColor = t.type === 'income' ? 'bg-green-500' : 'bg-red-500';
                 const icon = t.type === 'income' ? 'fa-arrow-up' : 'fa-arrow-down';
@@ -1338,13 +1374,7 @@
                 `;
             }).join('');
             
-            // Show message if more transactions exist
-            const moreMessage = filteredTransactions.length > 50 ? 
-                `<div class="text-center text-white/60 py-4">
-                    <p>Showing first 50 of ${filteredTransactions.length} transactions</p>
-                </div>` : '';
-            
-            container.innerHTML = transactionHTML + moreMessage;
+            container.innerHTML = transactionHTML;
         }
 
         function openTransactionModal(transactionId) {
@@ -1355,11 +1385,10 @@
             document.getElementById('edit-type').value = transaction.type;
             document.getElementById('edit-amount').value = transaction.amount;
             document.getElementById('edit-description').value = transaction.description;
-            document.getElementById('edit-date').value = transaction.date;
+            document.getElementById('edit-date').value = new Date(transaction.date.seconds * 1000).toISOString().split('T')[0];
             
-            // Populate category dropdown based on type
             const categorySelect = document.getElementById('edit-category');
-            const categories = transaction.type === 'income' 
+            const categories = transaction.type === 'income'
                 ? ['Salary', 'Freelance', 'Family', 'Scholarship', 'Other']
                 : ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Education', 'Health', 'Other'];
             
@@ -1370,32 +1399,37 @@
             document.getElementById('transaction-modal').classList.add('show');
         }
 
-        // Budget Functions
-        function addBudget(category, limit) {
-            const existingBudget = budgets.find(b => b.category === category);
+        // --- Budgets ---
+        async function addBudget(category, limit) {
+            if (!currentUser) {
+                showAlert('Please sign in to set budgets.');
+                return;
+            }
+            const { db, doc, setDoc, appId } = window.firebase;
             
-            if (existingBudget) {
-                existingBudget.limit = parseFloat(limit);
-            } else {
-                const budget = {
-                    id: generateId(),
+            try {
+                // Check if budget for this category already exists
+                const existingBudget = budgets.find(b => b.category === category);
+                const budgetDocRef = existingBudget ? doc(db, `artifacts/${appId}/users/${currentUser.uid}/budgets`, existingBudget.id) : null;
+                
+                const budgetData = {
                     category: category,
                     limit: parseFloat(limit),
-                    spent: 0
                 };
-                budgets.push(budget);
+                
+                if (budgetDocRef) {
+                    await setDoc(budgetDocRef, budgetData, { merge: true });
+                } else {
+                    const newBudgetRef = doc(collection(db, `artifacts/${appId}/users/${currentUser.uid}/budgets`));
+                    await setDoc(newBudgetRef, budgetData);
+                }
+                showToast('Budget updated successfully!');
+            } catch (error) {
+                console.error("Error setting budget: ", error);
+                showAlert(`Failed to set budget. Please try again.`, 'Error', 'error');
             }
-            
-            // Calculate spent amount
-            updateBudgetSpent();
-            
-            if (currentUser) {
-                localStorage.setItem(`hostelhive_budgets_${currentUser.id}`, JSON.stringify(budgets));
-            }
-            loadBudgets();
-            showToast('Budget updated successfully!');
         }
-
+        
         function updateBudgetSpent() {
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
@@ -1403,8 +1437,8 @@
             budgets.forEach(budget => {
                 const spent = transactions
                     .filter(t => {
-                        const tDate = new Date(t.date);
-                        return t.type === 'expense' && 
+                        const tDate = t.date ? new Date(t.date.seconds * 1000) : new Date();
+                        return t.type === 'expense' &&
                                t.category === budget.category &&
                                tDate.getMonth() === currentMonth &&
                                tDate.getFullYear() === currentYear;
@@ -1414,26 +1448,20 @@
                 budget.spent = spent;
             });
         }
-
+        
         function loadBudgets() {
             updateBudgetSpent();
             
             const container = document.getElementById('budgets-list');
-            
             if (budgets.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-white/60 py-8">
-                        <i class="fas fa-piggy-bank text-4xl mb-4"></i>
-                        <p>No budgets set yet. Create your first budget to track spending!</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center text-white/60 py-8"> <i class="fas fa-piggy-bank text-4xl mb-4"></i> <p>No budgets set yet. Create your first budget to track spending!</p> </div>`;
                 return;
             }
             
             container.innerHTML = budgets.map(budget => {
-                const percentage = (budget.spent / budget.limit) * 100;
+                const percentage = budget.spent > 0 ? (budget.spent / budget.limit) * 100 : 0;
                 const isOverBudget = percentage > 100;
-                const isNearLimit = percentage > 80;
+                const isNearLimit = percentage > 80 && !isOverBudget;
                 
                 return `
                     <div class="glass rounded-2xl p-4">
@@ -1456,13 +1484,12 @@
                 `;
             }).join('');
         }
-
+        
         function checkBudgetAlerts(category, amount) {
             const budget = budgets.find(b => b.category === category);
             if (!budget) return;
             
             updateBudgetSpent();
-            
             const percentage = (budget.spent / budget.limit) * 100;
             
             if (percentage >= 100) {
@@ -1471,23 +1498,20 @@
                 showToast(`You're near your ${category} budget limit (${percentage.toFixed(1)}%)`, 'warning');
             }
         }
-
-        // Reports Functions
+        
+        // --- Reports ---
         function loadReports() {
-            // Populate month selector
             const monthSelect = document.getElementById('report-month');
             const months = [];
             
-            // Get unique months from transactions
             transactions.forEach(t => {
-                const date = new Date(t.date);
+                const date = t.date ? new Date(t.date.seconds * 1000) : new Date();
                 const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 if (!months.includes(monthYear)) {
                     months.push(monthYear);
                 }
             });
             
-            // Add current month if not present
             const currentMonth = new Date();
             const currentMonthYear = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
             if (!months.includes(currentMonthYear)) {
@@ -1505,22 +1529,22 @@
         }
 
         function generateReport(month) {
-            if (!month) return;
+            if (!month) {
+                document.getElementById('report-details').innerHTML = `<div class="text-center text-white/60 py-8"> <i class="fas fa-chart-bar text-4xl mb-4"></i> <p>Select a month to view detailed report</p> </div>`;
+                document.getElementById('report-income').textContent = formatCurrency(0);
+                document.getElementById('report-expenses').textContent = formatCurrency(0);
+                document.getElementById('report-savings').textContent = formatCurrency(0);
+                return;
+            }
             
             const [year, monthNum] = month.split('-');
             const monthTransactions = transactions.filter(t => {
-                const tDate = new Date(t.date);
+                const tDate = t.date ? new Date(t.date.seconds * 1000) : new Date();
                 return tDate.getFullYear() == year && tDate.getMonth() == (monthNum - 1);
             });
             
-            const income = monthTransactions
-                .filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + t.amount, 0);
-                
-            const expenses = monthTransactions
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0);
-                
+            const income = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const expenses = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
             const savings = income - expenses;
             
             document.getElementById('report-income').textContent = formatCurrency(income);
@@ -1528,20 +1552,12 @@
             document.getElementById('report-savings').textContent = formatCurrency(savings);
             document.getElementById('report-savings').className = `text-2xl font-bold ${savings >= 0 ? 'text-green-400' : 'text-red-400'}`;
             
-            // Show detailed breakdown
             const container = document.getElementById('report-details');
-            
             if (monthTransactions.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-white/60 py-8">
-                        <i class="fas fa-chart-bar text-4xl mb-4"></i>
-                        <p>No transactions found for this month</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center text-white/60 py-8"> <i class="fas fa-chart-bar text-4xl mb-4"></i> <p>No transactions found for this month</p> </div>`;
                 return;
             }
             
-            // Group by category
             const categoryBreakdown = {};
             monthTransactions.forEach(t => {
                 if (!categoryBreakdown[t.category]) {
@@ -1567,140 +1583,116 @@
                 </div>
             `;
         }
-
-        function downloadCSV(month) {
-            if (!month) {
-                showToast('Please select a month first', 'error');
-                return;
-            }
-            
-            const [year, monthNum] = month.split('-');
-            const monthTransactions = transactions.filter(t => {
-                const tDate = new Date(t.date);
-                return tDate.getFullYear() == year && tDate.getMonth() == (monthNum - 1);
-            });
-            
-            if (monthTransactions.length === 0) {
-                showToast('No transactions found for this month', 'error');
-                return;
-            }
-            
-            const headers = ['Date', 'Type', 'Category', 'Description', 'Amount'];
-            const csvContent = [
-                headers.join(','),
-                ...monthTransactions.map(t => [
-                    t.date,
-                    t.type,
-                    t.category,
-                    `"${t.description}"`,
-                    t.amount
-                ].join(','))
-            ].join('\n');
-            
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `hostelhive-report-${month}.csv`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            
-            showToast('CSV report downloaded successfully!');
-        }
-
-        function downloadPDF(month) {
-            if (!month) {
-                showToast('Please select a month first', 'error');
-                return;
-            }
-            
-            showToast('PDF download feature coming soon!', 'warning');
-        }
-
-        // Settings Functions
+        
+        // --- Settings & UI ---
         function loadSettings() {
             if (currentUser) {
-                document.getElementById('profile-name').value = currentUser.name;
+                const { db, doc, onSnapshot, appId } = window.firebase;
+                const userDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/profile/main`);
+                onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        document.getElementById('profile-name').value = docSnap.data().name;
+                    }
+                });
                 document.getElementById('profile-email').value = currentUser.email;
             }
+            
+            const savedCurrency = localStorage.getItem('hostelhive_currency');
+            if (savedCurrency) {
+                currentCurrency = savedCurrency;
+            }
             document.getElementById('currency-select').value = currentCurrency;
+            
+            const savedTheme = localStorage.getItem('hostelhive_theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark');
+                isDarkMode = true;
+            } else {
+                document.body.classList.remove('dark');
+                isDarkMode = false;
+            }
+            updateThemeIcons();
         }
-
-        function updateProfile(name) {
-            if (currentUser) {
-                currentUser.name = name;
-                localStorage.setItem(`hostelhive_user_${currentUser.id}`, JSON.stringify(currentUser));
-                updateDashboard();
+        
+        async function updateProfile(name) {
+            if (!currentUser) return;
+            const { db, doc, setDoc, appId } = window.firebase;
+            
+            try {
+                const userDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/profile/main`);
+                await setDoc(userDocRef, { name: name }, { merge: true });
                 showToast('Profile updated successfully!');
+            } catch (error) {
+                console.error("Error updating profile:", error);
+                showAlert(`Failed to update profile.`, 'Error', 'error');
             }
         }
-
+        
         function toggleTheme() {
             isDarkMode = !isDarkMode;
             document.body.classList.toggle('dark', isDarkMode);
-            
+            localStorage.setItem('hostelhive_theme', isDarkMode ? 'dark' : 'light');
+            updateThemeIcons();
+        }
+        
+        function updateThemeIcons() {
             const themeIcons = document.querySelectorAll('#theme-toggle i, #theme-toggle-settings i');
             themeIcons.forEach(icon => {
                 icon.className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
             });
-            
-            localStorage.setItem('hostelhive_theme', isDarkMode ? 'dark' : 'light');
         }
-
-        function deleteAccount() {
-            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                logout();
-                showToast('Account deleted successfully!');
-            }
-        }
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            // Load saved data
-            const currentUserId = localStorage.getItem('hostelhive_current_user');
-            const savedTheme = localStorage.getItem('hostelhive_theme');
-            
-            if (currentUserId) {
-                const savedUser = localStorage.getItem(`hostelhive_user_${currentUserId}`);
+        
+        async function deleteAccount() {
+            const result = new Promise(resolve => {
+                const modal = document.getElementById('alert-modal');
+                document.getElementById('alert-title').textContent = 'Confirm Account Deletion';
+                document.getElementById('alert-message').textContent = 'Are you sure you want to delete your account? This action cannot be undone.';
+                document.getElementById('alert-icon').className = 'fas fa-trash-alt text-3xl text-red-400';
                 
-                if (savedUser) {
-                    // Ensure clean state before loading user data
-                    currentUser = null;
-                    transactions = [];
-                    budgets = [];
-                    
-                    // Load user-specific data
-                    currentUser = JSON.parse(savedUser);
-                    
-                    const savedTransactions = localStorage.getItem(`hostelhive_transactions_${currentUserId}`);
-                    const savedBudgets = localStorage.getItem(`hostelhive_budgets_${currentUserId}`);
-                    
-                    transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
-                    budgets = savedBudgets ? JSON.parse(savedBudgets) : [];
-                    
-                    showDashboard();
-                } else {
-                    // Invalid session, clear it
-                    localStorage.removeItem('hostelhive_current_user');
+                const confirmBtn = document.getElementById('alert-confirm');
+                const cancelBtn = document.getElementById('alert-cancel');
+                cancelBtn.classList.remove('hidden');
+                
+                confirmBtn.onclick = () => {
+                    modal.classList.remove('show');
+                    resolve(true);
+                };
+                cancelBtn.onclick = () => {
+                    modal.classList.remove('show');
+                    resolve(false);
+                };
+                modal.classList.add('show');
+            });
+            
+            if (await result) {
+                try {
+                    await currentUser.delete();
+                    showToast('Account deleted successfully!');
+                    logout();
+                } catch (error) {
+                    console.error("Error deleting account:", error);
+                    showAlert(`Failed to delete account. You may need to sign in again.`, 'Error', 'error');
                 }
             }
+        }
+        
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', async function() {
+            await setupFirebase();
             
-            if (savedTheme === 'dark') {
-                toggleTheme();
+            // Check auth state on initial load
+            const { auth } = window.firebase;
+            if (auth.currentUser) {
+                showDashboard();
             }
             
-            // Navigation event listeners
+            // Landing page navigation
             document.getElementById('nav-login').addEventListener('click', () => showAuthPage('login'));
             document.getElementById('nav-signup').addEventListener('click', () => showAuthPage('signup'));
             document.getElementById('hero-signup').addEventListener('click', () => showAuthPage('signup'));
             document.getElementById('footer-signup').addEventListener('click', () => showAuthPage('signup'));
             document.getElementById('hero-demo').addEventListener('click', () => {
-                // Load demo data
-                currentUser = { id: 'demo', name: 'Demo User', email: 'demo@hostelhive.com' };
-                transactions = [...sampleTransactions];
-                budgets = [...sampleBudgets];
-                showDashboard();
-                showToast('Welcome to the demo!');
+                showAlert('Demo mode is not available with the new database. Please create an account to start tracking!');
             });
             
             // Auth form toggles
@@ -1710,59 +1702,47 @@
             document.getElementById('back-to-home-signup').addEventListener('click', () => showPage('landing-page'));
             
             // Auth forms
-            document.getElementById('loginForm').addEventListener('submit', function(e) {
+            document.getElementById('loginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const email = document.getElementById('login-email').value;
                 const password = document.getElementById('login-password').value;
-                
-                if (login(email, password)) {
+                if (await login(email, password)) {
                     this.reset();
-                } else {
-                    showToast('Invalid credentials. Please try again.', 'error');
                 }
             });
             
-            document.getElementById('signupForm').addEventListener('submit', function(e) {
+            document.getElementById('signupForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const name = document.getElementById('signup-name').value;
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
-                
-                if (signup(name, email, password)) {
+                if (await signup(name, email, password)) {
                     this.reset();
-                } else {
-                    showToast('Please fill all fields correctly.', 'error');
                 }
             });
             
             // Dashboard tabs
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    showTab(btn.dataset.tab);
-                });
+                btn.addEventListener('click', () => showTab(btn.dataset.tab));
             });
             
             // Quick add forms
-            document.getElementById('quick-income-form').addEventListener('submit', function(e) {
+            document.getElementById('quick-income-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const amount = document.getElementById('income-amount').value;
                 const description = document.getElementById('income-description').value;
                 const category = document.getElementById('income-category').value;
-                
-                if (addTransaction('income', amount, description, category)) {
-                    this.reset();
-                }
+                await addTransaction('income', amount, description, category);
+                this.reset();
             });
             
-            document.getElementById('quick-expense-form').addEventListener('submit', function(e) {
+            document.getElementById('quick-expense-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const amount = document.getElementById('expense-amount').value;
                 const description = document.getElementById('expense-description').value;
                 const category = document.getElementById('expense-category').value;
-                
-                if (addTransaction('expense', amount, description, category)) {
-                    this.reset();
-                }
+                await addTransaction('expense', amount, description, category);
+                this.reset();
             });
             
             // Transaction search and filter
@@ -1770,12 +1750,11 @@
             document.getElementById('filter-category').addEventListener('change', loadTransactions);
             
             // Budget form
-            document.getElementById('budget-form').addEventListener('submit', function(e) {
+            document.getElementById('budget-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const category = document.getElementById('budget-category').value;
                 const limit = document.getElementById('budget-limit').value;
-                
-                addBudget(category, limit);
+                await addBudget(category, limit);
                 this.reset();
             });
             
@@ -1795,10 +1774,10 @@
             });
             
             // Settings
-            document.getElementById('profile-form').addEventListener('submit', function(e) {
+            document.getElementById('profile-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const name = document.getElementById('profile-name').value;
-                updateProfile(name);
+                await updateProfile(name);
             });
             
             document.getElementById('currency-select').addEventListener('change', function() {
@@ -1822,7 +1801,7 @@
                 document.getElementById('transaction-modal').classList.remove('show');
             });
             
-            document.getElementById('transaction-form').addEventListener('submit', function(e) {
+            document.getElementById('transaction-form').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const id = document.getElementById('edit-transaction-id').value;
                 const data = {
@@ -1830,25 +1809,34 @@
                     amount: parseFloat(document.getElementById('edit-amount').value),
                     description: document.getElementById('edit-description').value,
                     category: document.getElementById('edit-category').value,
-                    date: document.getElementById('edit-date').value
+                    date: new Date(document.getElementById('edit-date').value)
                 };
-                
-                editTransaction(id, data);
+                await editTransaction(id, data);
                 document.getElementById('transaction-modal').classList.remove('show');
             });
             
-            document.getElementById('delete-transaction').addEventListener('click', function() {
+            document.getElementById('delete-transaction').addEventListener('click', async function() {
                 const id = document.getElementById('edit-transaction-id').value;
-                if (confirm('Are you sure you want to delete this transaction?')) {
-                    deleteTransaction(id);
+                const result = new Promise(resolve => {
+                    const modal = document.getElementById('alert-modal');
+                    document.getElementById('alert-title').textContent = 'Confirm Deletion';
+                    document.getElementById('alert-message').textContent = 'Are you sure you want to delete this transaction?';
+                    document.getElementById('alert-icon').className = 'fas fa-trash-alt text-3xl text-red-400';
+                    document.getElementById('alert-cancel').classList.remove('hidden');
+                    
+                    document.getElementById('alert-confirm').onclick = () => { modal.classList.remove('show'); resolve(true); };
+                    document.getElementById('alert-cancel').onclick = () => { modal.classList.remove('show'); resolve(false); };
+                    modal.classList.add('show');
+                });
+                if (await result) {
+                    await deleteTransaction(id);
                     document.getElementById('transaction-modal').classList.remove('show');
                 }
             });
             
-            // Update category options when transaction type changes
             document.getElementById('edit-type').addEventListener('change', function() {
                 const categorySelect = document.getElementById('edit-category');
-                const categories = this.value === 'income' 
+                const categories = this.value === 'income'
                     ? ['Salary', 'Freelance', 'Family', 'Scholarship', 'Other']
                     : ['Food', 'Transport', 'Entertainment', 'Shopping', 'Bills', 'Education', 'Health', 'Other'];
                 
@@ -1856,18 +1844,15 @@
                     categories.map(cat => `<option value="${cat}" class="bg-gray-800 text-white">${cat}</option>`).join('');
             });
             
-            // FAQ toggles
             document.querySelectorAll('.faq-toggle').forEach(toggle => {
                 toggle.addEventListener('click', function() {
                     const content = this.nextElementSibling;
                     const icon = this.querySelector('i');
-                    
                     content.classList.toggle('hidden');
                     icon.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
                 });
             });
             
-            // Close modal when clicking outside
             document.getElementById('transaction-modal').addEventListener('click', function(e) {
                 if (e.target === this) {
                     this.classList.remove('show');
@@ -1875,6 +1860,6 @@
             });
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97c8324b724e59ca',t:'MTc1NzQzNjc1MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
 
