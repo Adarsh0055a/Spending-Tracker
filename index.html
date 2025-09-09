@@ -843,22 +843,30 @@
         function login(email, password) {
             // Simple validation - in real app, this would be server-side
             if (email && password.length >= 6) {
-                currentUser = {
-                    id: generateId(),
-                    name: email.split('@')[0],
-                    email: email,
-                    createdAt: new Date().toISOString()
-                };
+                // Create consistent user ID based on email
+                const userId = btoa(email).replace(/[^a-zA-Z0-9]/g, '');
                 
-                // Load sample data for demo
-                transactions = [...sampleTransactions];
-                budgets = [...sampleBudgets];
+                // Check if user data already exists
+                const existingUserData = localStorage.getItem(`hostelhive_user_${userId}`);
+                const existingTransactions = localStorage.getItem(`hostelhive_transactions_${userId}`);
+                const existingBudgets = localStorage.getItem(`hostelhive_budgets_${userId}`);
                 
-                localStorage.setItem('hostelhive_user', JSON.stringify(currentUser));
-                localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
-                localStorage.setItem('hostelhive_budgets', JSON.stringify(budgets));
+                if (existingUserData) {
+                    // Load existing user data exactly as saved
+                    currentUser = JSON.parse(existingUserData);
+                    transactions = existingTransactions ? JSON.parse(existingTransactions) : [];
+                    budgets = existingBudgets ? JSON.parse(existingBudgets) : [];
+                    
+                    showToast(`Welcome back, ${currentUser.name}!`);
+                } else {
+                    // This is a new user - check if they meant to sign up instead
+                    showToast('Account not found. Please sign up first or check your credentials.', 'error');
+                    return false;
+                }
                 
-                showToast('Login successful!');
+                // Set current session data
+                localStorage.setItem('hostelhive_current_user', userId);
+                
                 showDashboard();
                 return true;
             }
@@ -867,21 +875,42 @@
 
         function signup(name, email, password) {
             if (name && email && password.length >= 6) {
+                // Create consistent user ID based on email
+                const userId = btoa(email).replace(/[^a-zA-Z0-9]/g, '');
+                
+                // Check if user already exists
+                const existingUserData = localStorage.getItem(`hostelhive_user_${userId}`);
+                if (existingUserData) {
+                    showToast('Account already exists! Please login instead.', 'error');
+                    return false;
+                }
+                
                 currentUser = {
-                    id: generateId(),
+                    id: userId,
                     name: name,
                     email: email,
                     createdAt: new Date().toISOString()
                 };
                 
-                transactions = [];
-                budgets = [];
+                // Give new users some sample data to get started
+                transactions = [...sampleTransactions.map(t => ({
+                    ...t,
+                    id: generateId(),
+                    date: new Date().toISOString().split('T')[0]
+                }))];
                 
-                localStorage.setItem('hostelhive_user', JSON.stringify(currentUser));
-                localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
-                localStorage.setItem('hostelhive_budgets', JSON.stringify(budgets));
+                budgets = [...sampleBudgets.map(b => ({
+                    ...b,
+                    id: generateId()
+                }))];
                 
-                showToast('Account created successfully!');
+                // Save user-specific data
+                localStorage.setItem(`hostelhive_user_${userId}`, JSON.stringify(currentUser));
+                localStorage.setItem(`hostelhive_transactions_${userId}`, JSON.stringify(transactions));
+                localStorage.setItem(`hostelhive_budgets_${userId}`, JSON.stringify(budgets));
+                localStorage.setItem('hostelhive_current_user', userId);
+                
+                showToast(`Welcome to HostelHive, ${name}!`);
                 showDashboard();
                 return true;
             }
@@ -892,27 +921,15 @@
             currentUser = null;
             transactions = [];
             budgets = [];
-            localStorage.removeItem('hostelhive_user');
-            localStorage.removeItem('hostelhive_transactions');
-            localStorage.removeItem('hostelhive_budgets');
+            localStorage.removeItem('hostelhive_current_user');
             showPage('landing-page');
             showToast('Logged out successfully!');
         }
 
         // Dashboard Functions
-        let dashboardUpdateTimeout;
-        
         function updateDashboard() {
             if (!currentUser) return;
             
-            // Debounce dashboard updates to prevent excessive re-renders
-            clearTimeout(dashboardUpdateTimeout);
-            dashboardUpdateTimeout = setTimeout(() => {
-                performDashboardUpdate();
-            }, 100);
-        }
-        
-        function performDashboardUpdate() {
             document.getElementById('user-name').textContent = `Welcome back, ${currentUser.name}!`;
             
             const currentMonth = new Date().getMonth();
@@ -944,44 +961,27 @@
                 
             const monthlyBalance = monthlyIncome - monthlyExpenses;
             
-            // Update DOM elements efficiently
-            const elements = {
-                'total-income': formatCurrency(monthlyIncome),
-                'total-expenses': formatCurrency(monthlyExpenses),
-                'balance': formatCurrency(monthlyBalance)
-            };
-            
-            Object.entries(elements).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element && element.textContent !== value) {
-                    element.textContent = value;
-                }
-            });
+            // Update DOM elements
+            document.getElementById('total-income').textContent = formatCurrency(monthlyIncome);
+            document.getElementById('total-expenses').textContent = formatCurrency(monthlyExpenses);
+            document.getElementById('balance').textContent = formatCurrency(monthlyBalance);
             
             const balanceStatus = document.getElementById('balance-status');
-            if (balanceStatus) {
-                let statusText, statusClass;
-                if (monthlyBalance > 0) {
-                    statusText = 'Surplus';
-                    statusClass = 'text-green-400 text-sm mt-2';
-                } else if (monthlyBalance < 0) {
-                    statusText = 'Deficit';
-                    statusClass = 'text-red-400 text-sm mt-2';
-                } else {
-                    statusText = 'Break-even';
-                    statusClass = 'text-blue-400 text-sm mt-2';
-                }
-                
-                if (balanceStatus.textContent !== statusText) {
-                    balanceStatus.textContent = statusText;
-                    balanceStatus.className = statusClass;
-                }
+            if (monthlyBalance > 0) {
+                balanceStatus.textContent = 'Surplus';
+                balanceStatus.className = 'text-green-400 text-sm mt-2';
+            } else if (monthlyBalance < 0) {
+                balanceStatus.textContent = 'Deficit';
+                balanceStatus.className = 'text-red-400 text-sm mt-2';
+            } else {
+                balanceStatus.textContent = 'Break-even';
+                balanceStatus.className = 'text-blue-400 text-sm mt-2';
             }
             
             // Update expense form state
             updateExpenseFormState(totalIncome, balance);
             
-            // Update charts immediately
+            // Update charts
             updateCharts();
         }
         
@@ -1033,28 +1033,15 @@
             }
         }
 
-        let chartUpdatePending = false;
-        
         function updateCharts() {
-            // Prevent multiple chart updates from queuing up
-            if (chartUpdatePending) return;
-            chartUpdatePending = true;
-            
-            // Update charts immediately without delay
-            requestAnimationFrame(() => {
-                updateCategoryChart();
-                updateTrendChart();
-                chartUpdatePending = false;
-            });
+            updateCategoryChart();
+            updateTrendChart();
         }
 
         function updateCategoryChart() {
             const ctx = document.getElementById('categoryChart');
             if (!ctx) return;
             
-            const context = ctx.getContext('2d');
-            
-            // Calculate data first
             const expensesByCategory = {};
             transactions
                 .filter(t => t.type === 'expense')
@@ -1065,59 +1052,42 @@
             const labels = Object.keys(expensesByCategory);
             const data = Object.values(expensesByCategory);
             
-            // Show simple text if no data
             if (labels.length === 0) {
-                // Destroy existing chart first
                 if (window.categoryChartInstance) {
                     window.categoryChartInstance.destroy();
                     window.categoryChartInstance = null;
                 }
-                
-                context.clearRect(0, 0, ctx.width, ctx.height);
-                context.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                context.font = '14px Inter';
-                context.textAlign = 'center';
-                context.fillText('Add expenses to see chart', ctx.width / 2, ctx.height / 2);
                 return;
             }
             
-            // Update existing chart data instead of recreating
             if (window.categoryChartInstance) {
                 window.categoryChartInstance.data.labels = labels;
                 window.categoryChartInstance.data.datasets[0].data = data;
-                window.categoryChartInstance.update('none'); // Instant update
+                window.categoryChartInstance.update();
                 return;
             }
             
-            // Create new chart only if none exists
             const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'];
             
-            window.categoryChartInstance = new Chart(context, {
+            window.categoryChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: labels,
                     datasets: [{
                         data: data,
                         backgroundColor: colors,
-                        borderWidth: 0,
-                        borderColor: 'transparent'
+                        borderWidth: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: false,
-                    layout: {
-                        padding: 10
-                    },
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: {
                                 color: 'white',
-                                padding: 8,
-                                font: { size: 11 },
-                                boxWidth: 12
+                                font: { size: 11 }
                             }
                         }
                     }
@@ -1129,9 +1099,6 @@
             const ctx = document.getElementById('trendChart');
             if (!ctx) return;
             
-            const context = ctx.getContext('2d');
-            
-            // Calculate data first
             const months = [];
             const incomeData = [];
             const expenseData = [];
@@ -1158,17 +1125,15 @@
                 expenseData.push(monthExpenses);
             }
             
-            // Update existing chart data instead of recreating
             if (window.trendChartInstance) {
                 window.trendChartInstance.data.labels = months;
                 window.trendChartInstance.data.datasets[0].data = incomeData;
                 window.trendChartInstance.data.datasets[1].data = expenseData;
-                window.trendChartInstance.update('none'); // Instant update
+                window.trendChartInstance.update();
                 return;
             }
             
-            // Create new chart only if none exists
-            window.trendChartInstance = new Chart(context, {
+            window.trendChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: months,
@@ -1179,7 +1144,6 @@
                             borderColor: '#10B981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
                             borderWidth: 2,
-                            pointRadius: 3,
                             tension: 0.1
                         },
                         {
@@ -1188,7 +1152,6 @@
                             borderColor: '#EF4444',
                             backgroundColor: 'rgba(239, 68, 68, 0.1)',
                             borderWidth: 2,
-                            pointRadius: 3,
                             tension: 0.1
                         }
                     ]
@@ -1196,44 +1159,22 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: false,
-                    layout: {
-                        padding: 10
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
                     plugins: {
                         legend: {
-                            position: 'top',
                             labels: {
                                 color: 'white',
-                                font: { size: 11 },
-                                padding: 15,
-                                boxWidth: 12
+                                font: { size: 11 }
                             }
                         }
                     },
                     scales: {
                         x: {
-                            ticks: { 
-                                color: 'rgba(255, 255, 255, 0.8)',
-                                font: { size: 10 }
-                            },
-                            grid: { 
-                                color: 'rgba(255, 255, 255, 0.1)',
-                                display: false
-                            }
+                            ticks: { color: 'rgba(255, 255, 255, 0.8)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
                         },
                         y: {
-                            ticks: { 
-                                color: 'rgba(255, 255, 255, 0.8)',
-                                font: { size: 10 }
-                            },
-                            grid: { 
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
+                            ticks: { color: 'rgba(255, 255, 255, 0.8)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
                         }
                     }
                 }
@@ -1277,7 +1218,9 @@
             };
             
             transactions.push(transaction);
-            localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+            if (currentUser) {
+                localStorage.setItem(`hostelhive_transactions_${currentUser.id}`, JSON.stringify(transactions));
+            }
             
             updateDashboard();
             checkBudgetAlerts(category, amount);
@@ -1290,7 +1233,9 @@
             const index = transactions.findIndex(t => t.id === id);
             if (index !== -1) {
                 transactions[index] = { ...transactions[index], ...data };
-                localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+                if (currentUser) {
+                    localStorage.setItem(`hostelhive_transactions_${currentUser.id}`, JSON.stringify(transactions));
+                }
                 updateDashboard();
                 loadTransactions();
                 showToast('Transaction updated successfully!');
@@ -1299,23 +1244,15 @@
 
         function deleteTransaction(id) {
             transactions = transactions.filter(t => t.id !== id);
-            localStorage.setItem('hostelhive_transactions', JSON.stringify(transactions));
+            if (currentUser) {
+                localStorage.setItem(`hostelhive_transactions_${currentUser.id}`, JSON.stringify(transactions));
+            }
             updateDashboard();
             loadTransactions();
             showToast('Transaction deleted successfully!');
         }
 
-        let transactionLoadTimeout;
-        
         function loadTransactions() {
-            // Debounce transaction loading for search/filter
-            clearTimeout(transactionLoadTimeout);
-            transactionLoadTimeout = setTimeout(() => {
-                performTransactionLoad();
-            }, 200);
-        }
-        
-        function performTransactionLoad() {
             const container = document.getElementById('transactions-list');
             if (!container) return;
             
@@ -1429,7 +1366,9 @@
             // Calculate spent amount
             updateBudgetSpent();
             
-            localStorage.setItem('hostelhive_budgets', JSON.stringify(budgets));
+            if (currentUser) {
+                localStorage.setItem(`hostelhive_budgets_${currentUser.id}`, JSON.stringify(budgets));
+            }
             loadBudgets();
             showToast('Budget updated successfully!');
         }
@@ -1667,7 +1606,7 @@
         function updateProfile(name) {
             if (currentUser) {
                 currentUser.name = name;
-                localStorage.setItem('hostelhive_user', JSON.stringify(currentUser));
+                localStorage.setItem(`hostelhive_user_${currentUser.id}`, JSON.stringify(currentUser));
                 updateDashboard();
                 showToast('Profile updated successfully!');
             }
@@ -1695,16 +1634,20 @@
         // Event Listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Load saved data
-            const savedUser = localStorage.getItem('hostelhive_user');
-            const savedTransactions = localStorage.getItem('hostelhive_transactions');
-            const savedBudgets = localStorage.getItem('hostelhive_budgets');
+            const currentUserId = localStorage.getItem('hostelhive_current_user');
             const savedTheme = localStorage.getItem('hostelhive_theme');
             
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
-                budgets = savedBudgets ? JSON.parse(savedBudgets) : [];
-                showDashboard();
+            if (currentUserId) {
+                const savedUser = localStorage.getItem(`hostelhive_user_${currentUserId}`);
+                const savedTransactions = localStorage.getItem(`hostelhive_transactions_${currentUserId}`);
+                const savedBudgets = localStorage.getItem(`hostelhive_budgets_${currentUserId}`);
+                
+                if (savedUser) {
+                    currentUser = JSON.parse(savedUser);
+                    transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
+                    budgets = savedBudgets ? JSON.parse(savedBudgets) : [];
+                    showDashboard();
+                }
             }
             
             if (savedTheme === 'dark') {
@@ -1897,5 +1840,5 @@
             });
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9764d007044059c6',t:'MTc1NjM5NDYzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97c8238b56a459ca',t:'MTc1NzQzNjE0OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
